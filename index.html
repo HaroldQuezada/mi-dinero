@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Dinero</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="vista-login" class="vista">
+  <div class="login-box">
+    <h1>Mi Dinero</h1>
+    <p class="subtitulo">Control personal de finanzas</p>
+    <form id="form-login">
+      <label>Correo</label>
+      <input type="email" id="login-email" required autocomplete="email">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" required autocomplete="current-password">
+      <button type="submit" class="btn-primario">Entrar</button>
+    </form>
+    <p class="login-error" id="login-error"></p>
+    <button id="btn-mostrar-registro" class="btn-link">¿No tienes cuenta? Crear una</button>
+  </div>
+</div>
+
+<!-- ===================== APP (tras login) ===================== -->
+<div id="vista-app" class="vista oculto">
+
+  <header class="topbar">
+    <div class="topbar-titulo">Mi Dinero</div>
+    <button id="btn-logout" class="btn-link">Salir</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab activo" data-tab="dashboard">Dashboard</button>
+    <button class="tab" data-tab="movimientos">Movimientos</button>
+    <button class="tab" data-tab="deudas">Deudas</button>
+    <button class="tab" data-tab="gastos-fijos">Gastos fijos</button>
+  </nav>
+
+  <main class="contenido">
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <section id="panel-dashboard" class="panel">
+      <div class="tarjetas">
+        <div class="tarjeta">
+          <span class="tarjeta-label">Balance actual</span>
+          <span class="tarjeta-valor" id="d-balance">$0</span>
+        </div>
+        <div class="tarjeta">
+          <span class="tarjeta-label">Comprometido este mes</span>
+          <span class="tarjeta-valor" id="d-comprometido">$0</span>
+        </div>
+        <div class="tarjeta tarjeta-destacada">
+          <span class="tarjeta-label">Dinero libre real</span>
+          <span class="tarjeta-valor" id="d-libre">$0</span>
+        </div>
+        <div class="tarjeta">
+          <span class="tarjeta-label">Deuda total pendiente</span>
+          <span class="tarjeta-valor" id="d-deuda">$0</span>
+        </div>
+      </div>
+
+      <div class="fila-doble">
+        <div class="bloque">
+          <h2>Ingresos del mes</h2>
+          <p class="cifra-grande positivo" id="d-ingresos">$0</p>
+        </div>
+        <div class="bloque">
+          <h2>Gastos del mes</h2>
+          <p class="cifra-grande negativo" id="d-gastos">$0</p>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <h2>Gastos fijos de este mes</h2>
+        <div id="d-lista-gastos-fijos" class="lista-simple">
+          <p class="vacio">Cargando...</p>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <h2>Últimos movimientos</h2>
+        <div id="d-ultimos-movimientos" class="lista-simple">
+          <p class="vacio">Cargando...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- MOVIMIENTOS ---------- -->
+    <section id="panel-movimientos" class="panel oculto">
+      <div class="panel-header">
+        <h2>Movimientos</h2>
+        <button class="btn-primario" id="btn-nuevo-movimiento">+ Agregar</button>
+      </div>
+
+      <div class="filtro-mes">
+        <label>Mes:</label>
+        <input type="month" id="filtro-mes-movimientos">
+      </div>
+
+      <div id="lista-movimientos" class="lista-tabla">
+        <p class="vacio">Cargando...</p>
+      </div>
+    </section>
+
+    <!-- ---------- DEUDAS ---------- -->
+    <section id="panel-deudas" class="panel oculto">
+      <div class="panel-header">
+        <h2>Deudas</h2>
+        <button class="btn-primario" id="btn-nueva-deuda">+ Agregar deuda</button>
+      </div>
+      <div id="lista-deudas" class="lista-tarjetas">
+        <p class="vacio">Cargando...</p>
+      </div>
+    </section>
+
+    <!-- ---------- GASTOS FIJOS ---------- -->
+    <section id="panel-gastos-fijos" class="panel oculto">
+      <div class="panel-header">
+        <h2>Gastos fijos mensuales</h2>
+        <button class="btn-primario" id="btn-nuevo-gasto-fijo">+ Agregar</button>
+      </div>
+      <div id="lista-gastos-fijos" class="lista-tabla">
+        <p class="vacio">Cargando...</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL GENÉRICO ===================== -->
+<div id="modal-overlay" class="modal-overlay oculto">
+  <div class="modal-box" id="modal-box">
+    <!-- contenido inyectado por JS -->
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
