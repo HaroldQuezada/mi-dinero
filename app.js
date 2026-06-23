@@ -1,7 +1,9 @@
 // ============================================
 // CONEXIÓN A SUPABASE
+// (se llama "db" para no chocar con la variable global "supabase"
+// que ya crea la librería cargada desde el CDN)
 // ============================================
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let usuarioActual = null;
 let categoriasIngreso = ["Salario", "Venta", "Regalo", "Otro ingreso"];
@@ -54,22 +56,22 @@ formLogin.addEventListener("submit", async (e) => {
   const password = document.getElementById("login-password").value;
 
   if (modoRegistro) {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await db.auth.signUp({ email, password });
     if (error) return mostrarError("login-error", error.message);
     mostrarError("login-error", "Cuenta creada. Ya puedes entrar.");
     modoRegistro = false;
     btnMostrarRegistro.click();
   } else {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await db.auth.signInWithPassword({ email, password });
     if (error) return mostrarError("login-error", error.message);
   }
 });
 
 btnLogout.addEventListener("click", async () => {
-  await supabase.auth.signOut();
+  await db.auth.signOut();
 });
 
-supabase.auth.onAuthStateChange((_evento, sesion) => {
+db.auth.onAuthStateChange((_evento, sesion) => {
   if (sesion) {
     usuarioActual = sesion.user;
     document.getElementById("vista-login").classList.add("oculto");
@@ -164,7 +166,7 @@ function escapeHtml(texto) {
 
 async function eliminarMovimiento(id) {
   if (!confirm("¿Eliminar este movimiento?")) return;
-  const { error } = await supabase.from("movimientos").delete().eq("id", id);
+  const { error } = await db.from("movimientos").delete().eq("id", id);
   if (error) return alert("Error: " + error.message);
   await cargarMovimientos();
   renderizarDashboard();
@@ -240,9 +242,9 @@ function abrirModalMovimiento(id) {
 
     let error;
     if (movimiento) {
-      ({ error } = await supabase.from("movimientos").update(payload).eq("id", movimiento.id));
+      ({ error } = await db.from("movimientos").update(payload).eq("id", movimiento.id));
     } else {
-      ({ error } = await supabase.from("movimientos").insert(payload));
+      ({ error } = await db.from("movimientos").insert(payload));
     }
     if (error) return alert("Error: " + error.message);
     cerrarModal();
@@ -358,9 +360,9 @@ function abrirModalDeuda(id) {
 
     let error;
     if (deuda) {
-      ({ error } = await supabase.from("deudas").update(payload).eq("id", deuda.id));
+      ({ error } = await db.from("deudas").update(payload).eq("id", deuda.id));
     } else {
-      ({ error } = await supabase.from("deudas").insert(payload));
+      ({ error } = await db.from("deudas").insert(payload));
     }
     if (error) return alert("Error: " + error.message);
     cerrarModal();
@@ -371,7 +373,7 @@ function abrirModalDeuda(id) {
 
 async function eliminarDeuda(id) {
   if (!confirm("¿Eliminar esta deuda?")) return;
-  const { error } = await supabase.from("deudas").delete().eq("id", id);
+  const { error } = await db.from("deudas").delete().eq("id", id);
   if (error) return alert("Error: " + error.message);
   await cargarDeudas();
   renderizarDashboard();
@@ -405,7 +407,7 @@ function registrarPagoDeuda(id) {
     if (errorDeuda) return alert("Error: " + errorDeuda.message);
 
     // También se registra como movimiento (gasto) en el historial
-    await supabase.from("movimientos").insert({
+    await db.from("movimientos").insert({
       tipo: "gasto",
       monto,
       categoria: "Pago de deuda",
@@ -495,7 +497,7 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
       .single();
     if (errorMov) return alert("Error: " + errorMov.message);
 
-    const { error: errorPago } = await supabase.from("gastos_fijos_pagos").insert({
+    const { error: errorPago } = await db.from("gastos_fijos_pagos").insert({
       gasto_fijo_id: gastoFijoId,
       mes,
       movimiento_id: movimiento.id,
@@ -506,9 +508,9 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
     const pago = pagosDelMesCache.find((p) => p.gasto_fijo_id === gastoFijoId);
     if (pago) {
       if (pago.movimiento_id) {
-        await supabase.from("movimientos").delete().eq("id", pago.movimiento_id);
+        await db.from("movimientos").delete().eq("id", pago.movimiento_id);
       }
-      await supabase.from("gastos_fijos_pagos").delete().eq("id", pago.id);
+      await db.from("gastos_fijos_pagos").delete().eq("id", pago.id);
     }
   }
 
@@ -555,9 +557,9 @@ function abrirModalGastoFijo(id) {
 
     let error;
     if (gasto) {
-      ({ error } = await supabase.from("gastos_fijos").update(payload).eq("id", gasto.id));
+      ({ error } = await db.from("gastos_fijos").update(payload).eq("id", gasto.id));
     } else {
-      ({ error } = await supabase.from("gastos_fijos").insert(payload));
+      ({ error } = await db.from("gastos_fijos").insert(payload));
     }
     if (error) return alert("Error: " + error.message);
     cerrarModal();
@@ -568,7 +570,7 @@ function abrirModalGastoFijo(id) {
 
 async function eliminarGastoFijo(id) {
   if (!confirm("¿Eliminar este gasto fijo? (no borra los pagos ya registrados)")) return;
-  const { error } = await supabase.from("gastos_fijos").update({ activo: false }).eq("id", id);
+  const { error } = await db.from("gastos_fijos").update({ activo: false }).eq("id", id);
   if (error) return alert("Error: " + error.message);
   await cargarGastosFijos();
   renderizarDashboard();
