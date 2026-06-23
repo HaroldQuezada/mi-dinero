@@ -114,7 +114,7 @@ async function cargarTodo() {
 let movimientosCache = [];
 
 async function cargarMovimientos() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("movimientos")
     .select("*")
     .order("fecha", { ascending: false });
@@ -259,7 +259,7 @@ function abrirModalMovimiento(id) {
 let deudasCache = [];
 
 async function cargarDeudas() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("deudas")
     .select("*")
     .eq("activa", true)
@@ -400,7 +400,7 @@ function registrarPagoDeuda(id) {
 
     const nuevoPagado = deuda.pagado_acumulado + monto;
 
-    const { error: errorDeuda } = await supabase
+    const { error: errorDeuda } = await db
       .from("deudas")
       .update({ pagado_acumulado: nuevoPagado })
       .eq("id", deuda.id);
@@ -428,7 +428,7 @@ let gastosFijosCache = [];
 let pagosDelMesCache = [];
 
 async function cargarGastosFijos() {
-  const { data: fijos, error: errorFijos } = await supabase
+  const { data: fijos, error: errorFijos } = await db
     .from("gastos_fijos")
     .select("*")
     .eq("activo", true)
@@ -436,7 +436,7 @@ async function cargarGastosFijos() {
   if (errorFijos) { console.error(errorFijos); return; }
   gastosFijosCache = fijos;
 
-  const { data: pagos, error: errorPagos } = await supabase
+  const { data: pagos, error: errorPagos } = await db
     .from("gastos_fijos_pagos")
     .select("*")
     .eq("mes", mesActual());
@@ -484,7 +484,7 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
 
   if (marcarComoPagado) {
     // Crear el movimiento de gasto automáticamente
-    const { data: movimiento, error: errorMov } = await supabase
+    const { data: movimiento, error: errorMov } = await db
       .from("movimientos")
       .insert({
         tipo: "gasto",
