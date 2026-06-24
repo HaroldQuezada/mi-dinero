@@ -1,0 +1,50 @@
+/* ============================================
+   ESTILOS BASE COMPARTIDOS — Mi Vida
+   Modo oscuro fijo. Lo usan todos los módulos
+   (dinero, hábitos) para verse consistentes.
+============================================ */
+
+:root {
+  --color-fondo: #14161a;
+  --color-superficie: #1d2026;
+  --color-superficie-alta: #262a32;
+  --color-borde: #33373f;
+  --color-texto: #f0f1f3;
+  --color-texto-suave: #9aa0ab;
+  --color-primario: #5b8def;
+  --color-primario-hover: #4575d6;
+  --color-positivo: #4ade80;
+  --color-negativo: #f87171;
+  --color-advertencia: #fbbf24;
+  --radio: 10px;
+  --sombra: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  line-height: 1.5;
+}
+
+.oculto { display: none !important; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--color-texto);
+  background: var(--color-superficie-alta);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-texto-suave);
+}

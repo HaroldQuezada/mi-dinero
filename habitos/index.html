@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Hábitos</title>
+<link rel="stylesheet" href="../estilos-base.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="vista-login" class="vista">
+  <div class="login-box">
+    <h1>Mis Hábitos</h1>
+    <p class="subtitulo">Rutinas y organización diaria</p>
+    <form id="form-login">
+      <label>Correo</label>
+      <input type="email" id="login-email" required autocomplete="email">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" required autocomplete="current-password">
+      <button type="submit" class="btn-primario">Entrar</button>
+    </form>
+    <p class="login-error" id="login-error"></p>
+    <button id="btn-mostrar-registro" class="btn-link">¿No tienes cuenta? Crear una</button>
+  </div>
+</div>
+
+<!-- ===================== APP (tras login) ===================== -->
+<div id="vista-app" class="vista oculto">
+
+  <header class="topbar">
+    <a href="../index.html" class="btn-link" style="display:inline;width:auto;margin:0;">← Inicio</a>
+    <div class="topbar-titulo">Mis Hábitos</div>
+    <button id="btn-logout" class="btn-link">Salir</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab activo" data-tab="hoy">Hoy</button>
+    <button class="tab" data-tab="habitos">Hábitos</button>
+    <button class="tab" data-tab="calendario">Calendario</button>
+  </nav>
+
+  <main class="contenido">
+
+    <!-- ---------- HOY ---------- -->
+    <section id="panel-hoy" class="panel">
+      <div class="fecha-hoy" id="fecha-hoy">Hoy</div>
+      <div class="resumen-hoy" id="resumen-hoy">0 de 0 completados</div>
+
+      <div id="lista-hoy" class="lista-habitos-hoy">
+        <p class="vacio">Cargando...</p>
+      </div>
+    </section>
+
+    <!-- ---------- HÁBITOS (gestión) ---------- -->
+    <section id="panel-habitos" class="panel oculto">
+      <div class="panel-header">
+        <h2>Mis hábitos</h2>
+        <button class="btn-primario" id="btn-nuevo-habito">+ Agregar</button>
+      </div>
+      <div id="lista-habitos" class="lista-tabla">
+        <p class="vacio">Cargando...</p>
+      </div>
+    </section>
+
+    <!-- ---------- CALENDARIO ---------- -->
+    <section id="panel-calendario" class="panel oculto">
+      <div class="panel-header">
+        <h2>Calendario</h2>
+        <select id="selector-habito-calendario"></select>
+      </div>
+
+      <div class="rachas-resumen">
+        <div class="bloque-racha">
+          <span class="tarjeta-label">Racha actual</span>
+          <span class="tarjeta-valor" id="cal-racha-actual">0</span>
+        </div>
+        <div class="bloque-racha">
+          <span class="tarjeta-label">Racha más larga</span>
+          <span class="tarjeta-valor" id="cal-racha-larga">0</span>
+        </div>
+      </div>
+
+      <div class="calendario-nav">
+        <button id="cal-mes-anterior" class="btn-secundario btn-pequeno">←</button>
+        <span id="cal-mes-titulo">-</span>
+        <button id="cal-mes-siguiente" class="btn-secundario btn-pequeno">→</button>
+      </div>
+
+      <div class="calendario-grid" id="calendario-grid"></div>
+
+      <div class="calendario-leyenda">
+        <span><i class="punto punto-completado"></i> Completado</span>
+        <span><i class="punto punto-saltado"></i> Saltado</span>
+        <span><i class="punto punto-vacio"></i> Sin marcar</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL GENÉRICO ===================== -->
+<div id="modal-overlay" class="modal-overlay oculto">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

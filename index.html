@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Vida</title>
+<link rel="stylesheet" href="estilos-base.css">
+<style>
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .portada {
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  .portada h1 {
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  .portada .subtitulo {
+    color: var(--color-texto-suave);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+  .modulos {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .modulo-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--color-superficie);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio);
+    padding: 18px;
+    text-decoration: none;
+    color: var(--color-texto);
+    text-align: left;
+    transition: border-color 0.15s;
+  }
+  .modulo-card:hover {
+    border-color: var(--color-primario);
+  }
+  .modulo-icono {
+    font-size: 28px;
+    width: 48px;
+    text-align: center;
+  }
+  .modulo-texto strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+  .modulo-texto span {
+    font-size: 13px;
+    color: var(--color-texto-suave);
+  }
+</style>
+</head>
+<body>
+  <div class="portada">
+    <h1>Mi Vida</h1>
+    <p class="subtitulo">Panel personal</p>
+    <div class="modulos">
+      <a href="dinero/index.html" class="modulo-card">
+        <span class="modulo-icono">💰</span>
+        <span class="modulo-texto">
+          <strong>Mi Dinero</strong>
+          <span>Ingresos, gastos, deudas y presupuesto</span>
+        </span>
+      </a>
+      <a href="habitos/index.html" class="modulo-card">
+        <span class="modulo-icono">✅</span>
+        <span class="modulo-texto">
+          <strong>Mis Hábitos</strong>
+          <span>Rutinas y organización diaria</span>
+        </span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
