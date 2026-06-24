@@ -1,46 +1,10 @@
 /* ============================================
-   RESET Y BASE
+   ESTILOS ESPECÍFICOS DEL MÓDULO HÁBITOS
+   (reset, modo oscuro y variables en /estilos-base.css)
 ============================================ */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --color-fondo: #f5f6f8;
-  --color-superficie: #ffffff;
-  --color-borde: #e2e5ea;
-  --color-texto: #1c1f26;
-  --color-texto-suave: #6b7280;
-  --color-primario: #2563eb;
-  --color-primario-hover: #1d4ed8;
-  --color-positivo: #16a34a;
-  --color-negativo: #dc2626;
-  --color-advertencia: #d97706;
-  --radio: 10px;
-  --sombra: 0 1px 3px rgba(0,0,0,0.06);
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  background: var(--color-fondo);
-  color: var(--color-texto);
-  line-height: 1.5;
-}
-
-.oculto { display: none !important; }
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-}
-
-input, select {
-  font-family: inherit;
-  font-size: 15px;
-}
 
 /* ============================================
-   LOGIN
+   LOGIN (igual patrón que dinero)
 ============================================ */
 #vista-login {
   min-height: 100vh;
@@ -60,11 +24,7 @@ input, select {
   box-shadow: var(--sombra);
 }
 
-.login-box h1 {
-  font-size: 24px;
-  font-weight: 700;
-  text-align: center;
-}
+.login-box h1 { font-size: 24px; font-weight: 700; text-align: center; }
 
 .login-box .subtitulo {
   text-align: center;
@@ -121,10 +81,7 @@ input, select {
   justify-content: space-between;
 }
 
-.topbar-titulo {
-  font-weight: 700;
-  font-size: 17px;
-}
+.topbar-titulo { font-weight: 700; font-size: 17px; }
 
 .tabs {
   background: var(--color-superficie);
@@ -149,48 +106,167 @@ input, select {
   font-weight: 600;
 }
 
-.contenido {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px;
-}
+.contenido { max-width: 700px; margin: 0 auto; padding: 20px; }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+  gap: 10px;
 }
 
-.panel-header h2 {
-  font-size: 18px;
-  font-weight: 700;
-}
+.panel-header h2 { font-size: 18px; font-weight: 700; }
 
 /* ============================================
-   TARJETAS DASHBOARD
+   HOY
 ============================================ */
-.tarjetas {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+.fecha-hoy {
+  font-size: 14px;
+  color: var(--color-texto-suave);
+  text-transform: capitalize;
 }
 
-.tarjeta {
+.resumen-hoy {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.lista-habitos-hoy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tarjeta-habito-hoy {
   background: var(--color-superficie);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio);
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  box-shadow: var(--sombra);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.tarjeta-destacada {
-  border: 1px solid var(--color-primario);
-  background: #eff6ff;
+.tarjeta-habito-hoy.es-completado { border-color: var(--color-positivo); }
+.tarjeta-habito-hoy.es-saltado { border-color: var(--color-advertencia); opacity: 0.7; }
+
+.habito-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.habito-nombre { font-weight: 600; font-size: 15px; }
+
+.habito-meta {
+  font-size: 12px;
+  color: var(--color-texto-suave);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.racha-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-advertencia);
+}
+
+.acciones-hoy {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-icono {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--color-borde);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-superficie-alta);
+}
+
+.btn-icono.activo-completado {
+  background: rgba(74, 222, 128, 0.15);
+  border-color: var(--color-positivo);
+}
+
+.btn-icono.activo-saltado {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: var(--color-advertencia);
+}
+
+/* ============================================
+   LISTAS GENÉRICAS (gestión de hábitos)
+============================================ */
+.lista-tabla .fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-borde);
+  gap: 10px;
+  background: var(--color-superficie);
+}
+
+.lista-tabla {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 4px 16px;
+}
+
+.lista-tabla .fila:last-child { border-bottom: none; }
+
+.fila-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fila-titulo { font-weight: 600; font-size: 14px; }
+.fila-detalle { font-size: 12px; color: var(--color-texto-suave); }
+
+.fila-acciones { display: flex; gap: 8px; flex-shrink: 0; }
+.fila-acciones button { font-size: 12px; color: var(--color-texto-suave); padding: 4px 6px; }
+.fila-acciones button:hover { color: var(--color-primario); }
+
+.vacio { color: var(--color-texto-suave); font-size: 14px; padding: 12px 0; text-align: center; }
+
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.badge-alta { background: rgba(248, 113, 113, 0.15); color: var(--color-negativo); }
+.badge-media { background: rgba(251, 191, 36, 0.15); color: var(--color-advertencia); }
+.badge-baja { background: rgba(154, 160, 171, 0.15); color: var(--color-texto-suave); }
+
+/* ============================================
+   CALENDARIO
+============================================ */
+.rachas-resumen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bloque-racha {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .tarjeta-label {
@@ -198,181 +274,70 @@ input, select {
   color: var(--color-texto-suave);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
-.tarjeta-valor {
-  font-size: 22px;
-  font-weight: 700;
-}
+.tarjeta-valor { font-size: 22px; font-weight: 700; }
 
-.fila-doble {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.bloque {
-  background: var(--color-superficie);
+#selector-habito-calendario {
+  padding: 8px 12px;
   border: 1px solid var(--color-borde);
-  border-radius: var(--radio);
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--sombra);
+  border-radius: 8px;
 }
 
-.bloque h2 {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: var(--color-texto-suave);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.cifra-grande {
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.positivo { color: var(--color-positivo); }
-.negativo { color: var(--color-negativo); }
-
-/* ============================================
-   LISTAS
-============================================ */
-.lista-simple .fila,
-.lista-tabla .fila {
+.calendario-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--color-borde);
-  gap: 10px;
-}
-
-.lista-simple .fila:last-child,
-.lista-tabla .fila:last-child {
-  border-bottom: none;
-}
-
-.fila-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.fila-titulo {
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
   font-weight: 600;
-  font-size: 14px;
+  text-transform: capitalize;
 }
 
-.fila-detalle {
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.dia-celda {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   color: var(--color-texto-suave);
+  background: var(--color-superficie-alta);
 }
 
-.fila-monto {
-  font-weight: 700;
-  font-size: 14px;
-  white-space: nowrap;
-}
+.dia-celda.dia-completado { background: var(--color-positivo); color: #0d2616; font-weight: 700; }
+.dia-celda.dia-saltado { background: var(--color-advertencia); color: #2e2207; font-weight: 700; }
+.dia-celda.dia-vacia { background: transparent; }
 
-.fila-acciones {
+.calendario-leyenda {
   display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.fila-acciones button {
+  gap: 14px;
   font-size: 12px;
   color: var(--color-texto-suave);
-  padding: 4px 6px;
+  flex-wrap: wrap;
 }
 
-.fila-acciones button:hover {
-  color: var(--color-primario);
+.punto {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 4px;
 }
 
-.vacio {
-  color: var(--color-texto-suave);
-  font-size: 14px;
-  padding: 12px 0;
-  text-align: center;
-}
-
-.checkbox-pagado {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
+.punto-completado { background: var(--color-positivo); }
+.punto-saltado { background: var(--color-advertencia); }
+.punto-vacio { background: var(--color-superficie-alta); border: 1px solid var(--color-borde); }
 
 /* ============================================
-   TARJETAS DE DEUDA
-============================================ */
-.lista-tarjetas {
-  display: grid;
-  gap: 12px;
-}
-
-.tarjeta-deuda {
-  background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
-  border-radius: var(--radio);
-  padding: 16px;
-  box-shadow: var(--sombra);
-}
-
-.tarjeta-deuda-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-}
-
-.tarjeta-deuda-nombre {
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.barra-progreso {
-  height: 8px;
-  background: var(--color-borde);
-  border-radius: 4px;
-  overflow: hidden;
-  margin: 10px 0;
-}
-
-.barra-progreso-fill {
-  height: 100%;
-  background: var(--color-primario);
-}
-
-.deuda-datos {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  font-size: 13px;
-  margin-top: 10px;
-}
-
-.deuda-datos div span {
-  display: block;
-  color: var(--color-texto-suave);
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.deuda-acciones {
-  margin-top: 12px;
-  display: flex;
-  gap: 8px;
-}
-
-/* ============================================
-   BOTONES
+   BOTONES (mismo patrón que dinero)
 ============================================ */
 .btn-primario {
   background: var(--color-primario);
@@ -382,58 +347,28 @@ input, select {
   font-size: 14px;
   font-weight: 600;
 }
-
-.btn-primario:hover {
-  background: var(--color-primario-hover);
-}
+.btn-primario:hover { background: var(--color-primario-hover); }
 
 .btn-secundario {
-  background: var(--color-fondo);
+  background: var(--color-superficie-alta);
   border: 1px solid var(--color-borde);
   padding: 9px 16px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
+  color: var(--color-texto);
 }
+.btn-secundario:hover { background: var(--color-borde); }
 
-.btn-secundario:hover {
-  background: var(--color-borde);
-}
-
-.btn-peligro {
-  color: var(--color-negativo);
-}
-
-.btn-pequeno {
-  padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 6px;
-}
+.btn-pequeno { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
 
 /* ============================================
-   FILTRO MES
-============================================ */
-.filtro-mes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.filtro-mes input {
-  padding: 6px 10px;
-  border: 1px solid var(--color-borde);
-  border-radius: 6px;
-}
-
-/* ============================================
-   MODAL
+   MODAL (mismo patrón que dinero)
 ============================================ */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -451,94 +386,49 @@ input, select {
   overflow-y: auto;
 }
 
-.modal-box h3 {
-  font-size: 18px;
-  margin-bottom: 16px;
-}
+.modal-box h3 { font-size: 18px; margin-bottom: 16px; }
 
-.campo {
-  margin-bottom: 14px;
-}
+.campo { margin-bottom: 14px; }
+.campo label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 
-.campo label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.campo input,
-.campo select,
-.campo textarea {
+.campo input, .campo select {
   width: 100%;
   padding: 9px 12px;
   border: 1px solid var(--color-borde);
   border-radius: 8px;
 }
 
-.campo input:focus,
-.campo select:focus,
-.campo textarea:focus {
+.campo input:focus, .campo select:focus {
   outline: 2px solid var(--color-primario);
   outline-offset: 1px;
 }
 
-.toggle-tipo {
+.dias-semana-selector {
   display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.toggle-tipo button {
-  flex: 1;
-  padding: 10px;
+.dia-toggle {
+  padding: 8px 10px;
   border: 1px solid var(--color-borde);
   border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  background: var(--color-superficie-alta);
 }
 
-.toggle-tipo button.activo-ingreso {
-  background: #dcfce7;
-  border-color: var(--color-positivo);
-  color: var(--color-positivo);
+.dia-toggle.activo {
+  background: rgba(91, 141, 239, 0.2);
+  border-color: var(--color-primario);
+  color: var(--color-primario);
 }
 
-.toggle-tipo button.activo-gasto {
-  background: #fee2e2;
-  border-color: var(--color-negativo);
-  color: var(--color-negativo);
-}
-
-.modal-acciones {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.modal-acciones button {
-  flex: 1;
-}
-
-/* ============================================
-   ALERTAS DE PRESUPUESTO / ESTADOS
-============================================ */
-.badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
-  text-transform: uppercase;
-}
-
-.badge-ok { background: #dcfce7; color: var(--color-positivo); }
-.badge-pendiente { background: #fef3c7; color: var(--color-advertencia); }
+.modal-acciones { display: flex; gap: 10px; margin-top: 20px; }
+.modal-acciones button { flex: 1; }
 
 /* ============================================
    RESPONSIVE
 ============================================ */
 @media (max-width: 600px) {
-  .fila-doble { grid-template-columns: 1fr; }
-  .deuda-datos { grid-template-columns: repeat(2, 1fr); }
-  .tarjetas { grid-template-columns: repeat(2, 1fr); }
+  .rachas-resumen { grid-template-columns: 1fr 1fr; }
 }

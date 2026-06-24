@@ -5,34 +5,50 @@
 // ============================================
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const DIAS_SEMANA = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"];
+const DIAS_SEMANA_LABEL = { dom: "Dom", lun: "Lun", mar: "Mar", mie: "Mié", jue: "Jue", vie: "Vie", sab: "Sáb" };
+
 let usuarioActual = null;
-let categoriasIngreso = ["Salario", "Venta", "Regalo", "Otro ingreso"];
-let categoriasGasto = ["Comida", "Transporte", "Salud", "Ocio", "Hogar", "Otro gasto"];
+let categoriasHabito = ["Salud", "Estudio", "Trabajo", "Personal", "Hogar", "Otro"];
 
 // ============================================
-// UTILIDADES
+// UTILIDADES DE FECHA
 // ============================================
-function formatoMoneda(numero) {
-  const n = Number(numero) || 0;
-  return "$" + n.toLocaleString("es-CO", { maximumFractionDigits: 0 });
-}
-
-function mesActual() {
-  const hoy = new Date();
-  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function fechaHoy() {
+function fechaHoyIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function mostrarError(elementoId, mensaje) {
-  const el = document.getElementById(elementoId);
-  el.textContent = mensaje;
+function diaSemanaIso(fechaIso) {
+  // 0=domingo ... 6=sábado, usando la fecha como local (evita desfase UTC)
+  const [a, m, d] = fechaIso.split("-").map(Number);
+  return new Date(a, m - 1, d).getDay();
+}
+
+function formatoFechaLarga(fechaIso) {
+  const [a, m, d] = fechaIso.split("-").map(Number);
+  const fecha = new Date(a, m - 1, d);
+  return fecha.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function escapeHtml(texto) {
+  const div = document.createElement("div");
+  div.textContent = texto || "";
+  return div.innerHTML;
 }
 
 // ============================================
-// AUTENTICACIÓN
+// REGLA DE FRECUENCIA: ¿el hábito aplica en esta fecha?
+// ============================================
+function habitoAplicaEnFecha(habito, fechaIso) {
+  if (habito.frecuencia === "diario") return true;
+  // frecuencia personalizada: string tipo "lun,mie,vie"
+  const diasActivos = habito.frecuencia.split(",").map((d) => d.trim());
+  const diaHoy = DIAS_SEMANA[diaSemanaIso(fechaIso)];
+  return diasActivos.includes(diaHoy);
+}
+
+// ============================================
+// AUTENTICACIÓN (mismo patrón que el módulo Dinero)
 // ============================================
 const formLogin = document.getElementById("form-login");
 const btnLogout = document.getElementById("btn-logout");
@@ -51,19 +67,19 @@ btnMostrarRegistro.addEventListener("click", () => {
 
 formLogin.addEventListener("submit", async (e) => {
   e.preventDefault();
-  mostrarError("login-error", "");
+  document.getElementById("login-error").textContent = "";
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
 
   if (modoRegistro) {
     const { error } = await db.auth.signUp({ email, password });
-    if (error) return mostrarError("login-error", error.message);
-    mostrarError("login-error", "Cuenta creada. Ya puedes entrar.");
+    if (error) return (document.getElementById("login-error").textContent = error.message);
+    document.getElementById("login-error").textContent = "Cuenta creada. Ya puedes entrar.";
     modoRegistro = false;
     btnMostrarRegistro.click();
   } else {
     const { error } = await db.auth.signInWithPassword({ email, password });
-    if (error) return mostrarError("login-error", error.message);
+    if (error) return (document.getElementById("login-error").textContent = error.message);
   }
 });
 
@@ -93,568 +109,387 @@ document.querySelectorAll(".tab").forEach((tab) => {
     document.querySelectorAll(".panel").forEach((p) => p.classList.add("oculto"));
     tab.classList.add("activo");
     document.getElementById("panel-" + tab.dataset.tab).classList.remove("oculto");
+    if (tab.dataset.tab === "calendario") renderizarCalendario();
   });
 });
 
 // ============================================
-// CARGA GENERAL (al iniciar sesión o refrescar)
+// CARGA GENERAL
 // ============================================
+let habitosCache = [];
+let registrosCache = []; // todos los registros del usuario
+
 async function cargarTodo() {
-  await Promise.all([
-    cargarMovimientos(),
-    cargarDeudas(),
-    cargarGastosFijos(),
-  ]);
-  renderizarDashboard();
+  await Promise.all([cargarHabitos(), cargarRegistros()]);
+  renderizarHoy();
+  poblarSelectorCalendario();
 }
 
-// ============================================
-// MOVIMIENTOS
-// ============================================
-let movimientosCache = [];
-
-async function cargarMovimientos() {
+async function cargarHabitos() {
   const { data, error } = await db
-    .from("movimientos")
+    .from("habitos")
     .select("*")
-    .order("fecha", { ascending: false });
+    .eq("activo", true)
+    .order("created_at", { ascending: true });
   if (error) { console.error(error); return; }
-  movimientosCache = data;
-  renderizarMovimientos();
+  habitosCache = data;
+  renderizarListaHabitos();
 }
 
-function renderizarMovimientos() {
-  const filtro = document.getElementById("filtro-mes-movimientos").value || mesActual();
-  const contenedor = document.getElementById("lista-movimientos");
-  const filtrados = movimientosCache.filter((m) => m.fecha.slice(0, 7) === filtro);
+async function cargarRegistros() {
+  const { data, error } = await db
+    .from("habitos_registros")
+    .select("*");
+  if (error) { console.error(error); return; }
+  registrosCache = data;
+}
 
-  if (filtrados.length === 0) {
-    contenedor.innerHTML = '<p class="vacio">No hay movimientos este mes</p>';
+function registroDe(habitoId, fechaIso) {
+  return registrosCache.find((r) => r.habito_id === habitoId && r.fecha === fechaIso);
+}
+
+// ============================================
+// CÁLCULO DE RACHA (por hábito individual)
+// Cuenta hacia atrás desde hoy: días "completado" consecutivos.
+// Un día "saltado" o sin marcar ROMPE la racha.
+// Solo se evalúan los días en que el hábito aplicaba (según frecuencia).
+// ============================================
+function calcularRachaActual(habito) {
+  let racha = 0;
+  let fecha = new Date();
+  // Si hoy aún no se marca nada, no rompemos la racha por "hoy" todavía:
+  // empezamos a contar desde hoy hacia atrás, pero si hoy está vacío, lo saltamos sin romper.
+  for (let i = 0; i < 3650; i++) {
+    const fechaIso = fecha.toISOString().slice(0, 10);
+    const esHoy = fechaIso === fechaHoyIso();
+    if (habitoAplicaEnFecha(habito, fechaIso)) {
+      const reg = registroDe(habito.id, fechaIso);
+      if (reg && reg.estado === "completado") {
+        racha++;
+      } else if (esHoy && !reg) {
+        // hoy todavía no se marcó: no cuenta a favor ni rompe, seguimos al día anterior
+      } else {
+        break;
+      }
+    }
+    fecha.setDate(fecha.getDate() - 1);
+  }
+  return racha;
+}
+
+function calcularRachaMasLarga(habito) {
+  // Recorre todos los registros completados de este hábito, ordenados, y busca la racha más larga
+  const fechasCompletadas = registrosCache
+    .filter((r) => r.habito_id === habito.id && r.estado === "completado")
+    .map((r) => r.fecha)
+    .sort();
+
+  if (fechasCompletadas.length === 0) return 0;
+
+  let maxRacha = 1;
+  let rachaActual = 1;
+
+  for (let i = 1; i < fechasCompletadas.length; i++) {
+    const fechasEntreMedio = diasEsperadosEntre(habito, fechasCompletadas[i - 1], fechasCompletadas[i]);
+    if (fechasEntreMedio === 1) {
+      rachaActual++;
+      maxRacha = Math.max(maxRacha, rachaActual);
+    } else {
+      rachaActual = 1;
+    }
+  }
+  return maxRacha;
+}
+
+// Cuenta cuántas "ocurrencias esperadas" del hábito hay entre dos fechas (exclusivo-inclusivo)
+function diasEsperadosEntre(habito, fechaIsoA, fechaIsoB) {
+  const [a1, m1, d1] = fechaIsoA.split("-").map(Number);
+  const [a2, m2, d2] = fechaIsoB.split("-").map(Number);
+  let cursor = new Date(a1, m1 - 1, d1);
+  const fin = new Date(a2, m2 - 1, d2);
+  let conteo = 0;
+  cursor.setDate(cursor.getDate() + 1);
+  while (cursor <= fin) {
+    const iso = cursor.toISOString().slice(0, 10);
+    if (habitoAplicaEnFecha(habito, iso)) conteo++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return conteo;
+}
+
+// ============================================
+// PANTALLA "HOY"
+// ============================================
+function renderizarHoy() {
+  const hoy = fechaHoyIso();
+  document.getElementById("fecha-hoy").textContent = formatoFechaLarga(hoy);
+
+  const habitosDeHoy = habitosCache.filter((h) => habitoAplicaEnFecha(h, hoy));
+  const completados = habitosDeHoy.filter((h) => {
+    const r = registroDe(h.id, hoy);
+    return r && r.estado === "completado";
+  }).length;
+
+  document.getElementById("resumen-hoy").textContent =
+    `${completados} de ${habitosDeHoy.length} completados`;
+
+  const contenedor = document.getElementById("lista-hoy");
+  if (habitosDeHoy.length === 0) {
+    contenedor.innerHTML = '<p class="vacio">No tienes hábitos programados para hoy</p>';
     return;
   }
 
-  contenedor.innerHTML = filtrados.map((m) => `
+  contenedor.innerHTML = habitosDeHoy.map((h) => {
+    const reg = registroDe(h.id, hoy);
+    const estado = reg ? reg.estado : "pendiente";
+    const racha = calcularRachaActual(h);
+
+    return `
+      <div class="tarjeta-habito-hoy ${estado === "completado" ? "es-completado" : ""} ${estado === "saltado" ? "es-saltado" : ""}">
+        <div class="habito-info">
+          <span class="habito-nombre">${escapeHtml(h.nombre)}</span>
+          <span class="habito-meta">
+            ${h.hora_objetivo ? "🕒 " + h.hora_objetivo.slice(0, 5) : escapeHtml(h.categoria)}
+            ${racha > 0 ? `<span class="racha-pill">🔥 ${racha} días</span>` : ""}
+          </span>
+        </div>
+        <div class="acciones-hoy">
+          <button class="btn-icono ${estado === "completado" ? "activo-completado" : ""}"
+            onclick="marcarHabito('${h.id}', 'completado')" title="Completado">✅</button>
+          <button class="btn-icono ${estado === "saltado" ? "activo-saltado" : ""}"
+            onclick="marcarHabito('${h.id}', 'saltado')" title="Saltado a propósito">⏭️</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function marcarHabito(habitoId, nuevoEstado) {
+  const hoy = fechaHoyIso();
+  const existente = registroDe(habitoId, hoy);
+
+  // Si se le da clic al mismo estado que ya tenía, se desmarca (vuelve a pendiente)
+  if (existente && existente.estado === nuevoEstado) {
+    await db.from("habitos_registros").delete().eq("id", existente.id);
+  } else if (existente) {
+    await db.from("habitos_registros").update({ estado: nuevoEstado }).eq("id", existente.id);
+  } else {
+    await db.from("habitos_registros").insert({ habito_id: habitoId, fecha: hoy, estado: nuevoEstado });
+  }
+
+  await cargarRegistros();
+  renderizarHoy();
+}
+
+// ============================================
+// GESTIÓN DE HÁBITOS
+// ============================================
+function renderizarListaHabitos() {
+  const contenedor = document.getElementById("lista-habitos");
+  if (habitosCache.length === 0) {
+    contenedor.innerHTML = '<p class="vacio">No tienes hábitos creados aún</p>';
+    return;
+  }
+
+  contenedor.innerHTML = habitosCache.map((h) => `
     <div class="fila">
       <div class="fila-info">
-        <span class="fila-titulo">${escapeHtml(m.categoria)}</span>
-        <span class="fila-detalle">${formatoFecha(m.fecha)}${m.nota ? " · " + escapeHtml(m.nota) : ""}</span>
+        <span class="fila-titulo">${escapeHtml(h.nombre)}</span>
+        <span class="fila-detalle">${escapeHtml(h.categoria)} · ${descripcionFrecuencia(h.frecuencia)}</span>
       </div>
-      <span class="fila-monto ${m.tipo === "ingreso" ? "positivo" : "negativo"}">
-        ${m.tipo === "ingreso" ? "+" : "-"}${formatoMoneda(m.monto)}
-      </span>
+      <span class="badge badge-${h.prioridad}">${h.prioridad}</span>
       <div class="fila-acciones">
-        <button onclick="abrirModalMovimiento('${m.id}')">Editar</button>
-        <button onclick="eliminarMovimiento('${m.id}')">Eliminar</button>
+        <button onclick="abrirModalHabito('${h.id}')">Editar</button>
+        <button onclick="eliminarHabito('${h.id}')">Eliminar</button>
       </div>
     </div>
   `).join("");
 }
 
-document.getElementById("filtro-mes-movimientos").value = mesActual();
-document.getElementById("filtro-mes-movimientos").addEventListener("change", renderizarMovimientos);
-
-function formatoFecha(fechaIso) {
-  const [a, m, d] = fechaIso.split("-");
-  return `${d}/${m}/${a}`;
+function descripcionFrecuencia(frecuencia) {
+  if (frecuencia === "diario") return "Todos los días";
+  return frecuencia.split(",").map((d) => DIAS_SEMANA_LABEL[d.trim()]).join(", ");
 }
 
-function escapeHtml(texto) {
-  const div = document.createElement("div");
-  div.textContent = texto || "";
-  return div.innerHTML;
-}
+document.getElementById("btn-nuevo-habito").addEventListener("click", () => abrirModalHabito());
 
-async function eliminarMovimiento(id) {
-  if (!confirm("¿Eliminar este movimiento?")) return;
-  const { error } = await db.from("movimientos").delete().eq("id", id);
-  if (error) return alert("Error: " + error.message);
-  await cargarMovimientos();
-  renderizarDashboard();
-}
-
-document.getElementById("btn-nuevo-movimiento").addEventListener("click", () => abrirModalMovimiento());
-
-function abrirModalMovimiento(id) {
-  const movimiento = id ? movimientosCache.find((m) => m.id === id) : null;
-  const tipoInicial = movimiento ? movimiento.tipo : "gasto";
+function abrirModalHabito(id) {
+  const habito = id ? habitosCache.find((h) => h.id === id) : null;
+  const esDiario = !habito || habito.frecuencia === "diario";
+  const diasActivos = habito && habito.frecuencia !== "diario"
+    ? habito.frecuencia.split(",").map((d) => d.trim())
+    : [];
 
   abrirModal(`
-    <h3>${movimiento ? "Editar" : "Agregar"} movimiento</h3>
-    <div class="toggle-tipo">
-      <button type="button" id="toggle-ingreso" class="${tipoInicial === "ingreso" ? "activo-ingreso" : ""}">Ingreso</button>
-      <button type="button" id="toggle-gasto" class="${tipoInicial === "gasto" ? "activo-gasto" : ""}">Gasto</button>
-    </div>
-    <input type="hidden" id="mov-tipo" value="${tipoInicial}">
+    <h3>${habito ? "Editar" : "Agregar"} hábito</h3>
     <div class="campo">
-      <label>Monto</label>
-      <input type="number" id="mov-monto" min="0" step="1" value="${movimiento ? movimiento.monto : ""}" placeholder="0">
+      <label>Nombre</label>
+      <input type="text" id="h-nombre" value="${habito ? escapeHtml(habito.nombre) : ""}" placeholder="Ej: Leer, Gym, Agua">
     </div>
     <div class="campo">
       <label>Categoría</label>
-      <select id="mov-categoria"></select>
+      <select id="h-categoria"></select>
     </div>
     <div class="campo">
-      <label>Fecha</label>
-      <input type="date" id="mov-fecha" value="${movimiento ? movimiento.fecha : fechaHoy()}">
+      <label>Frecuencia</label>
+      <div class="toggle-tipo" style="margin-bottom:10px;">
+        <button type="button" id="h-freq-diario" class="${esDiario ? "activo-ingreso" : ""}">Diario</button>
+        <button type="button" id="h-freq-personalizada" class="${!esDiario ? "activo-ingreso" : ""}">Días específicos</button>
+      </div>
+      <div id="h-dias-selector" class="dias-semana-selector ${esDiario ? "oculto" : ""}">
+        ${DIAS_SEMANA.map((d) => `<button type="button" class="dia-toggle ${diasActivos.includes(d) ? "activo" : ""}" data-dia="${d}">${DIAS_SEMANA_LABEL[d]}</button>`).join("")}
+      </div>
     </div>
     <div class="campo">
-      <label>Nota (opcional)</label>
-      <input type="text" id="mov-nota" value="${movimiento ? escapeHtml(movimiento.nota || "") : ""}" placeholder="Ej: Mercado del mes">
+      <label>Hora objetivo (opcional)</label>
+      <input type="time" id="h-hora" value="${habito && habito.hora_objetivo ? habito.hora_objetivo.slice(0, 5) : ""}">
+    </div>
+    <div class="campo">
+      <label>Prioridad</label>
+      <select id="h-prioridad">
+        <option value="alta">Alta</option>
+        <option value="media">Media</option>
+        <option value="baja">Baja</option>
+      </select>
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn-primario" id="btn-guardar-movimiento">Guardar</button>
+      <button class="btn-primario" id="btn-guardar-habito">Guardar</button>
     </div>
   `);
 
-  function actualizarCategorias(tipo) {
-    const select = document.getElementById("mov-categoria");
-    const lista = tipo === "ingreso" ? categoriasIngreso : categoriasGasto;
-    select.innerHTML = lista.map((c) => `<option value="${c}">${c}</option>`).join("");
-    if (movimiento && lista.includes(movimiento.categoria)) {
-      select.value = movimiento.categoria;
+  const selectCat = document.getElementById("h-categoria");
+  selectCat.innerHTML = categoriasHabito.map((c) => `<option value="${c}">${c}</option>`).join("");
+  if (habito) selectCat.value = habito.categoria;
+
+  document.getElementById("h-prioridad").value = habito ? habito.prioridad : "media";
+
+  let frecuenciaEsDiaria = esDiario;
+  document.getElementById("h-freq-diario").addEventListener("click", () => {
+    frecuenciaEsDiaria = true;
+    document.getElementById("h-freq-diario").classList.add("activo-ingreso");
+    document.getElementById("h-freq-personalizada").classList.remove("activo-ingreso");
+    document.getElementById("h-dias-selector").classList.add("oculto");
+  });
+  document.getElementById("h-freq-personalizada").addEventListener("click", () => {
+    frecuenciaEsDiaria = false;
+    document.getElementById("h-freq-personalizada").classList.add("activo-ingreso");
+    document.getElementById("h-freq-diario").classList.remove("activo-ingreso");
+    document.getElementById("h-dias-selector").classList.remove("oculto");
+  });
+
+  document.querySelectorAll(".dia-toggle").forEach((boton) => {
+    boton.addEventListener("click", () => boton.classList.toggle("activo"));
+  });
+
+  document.getElementById("btn-guardar-habito").addEventListener("click", async () => {
+    const nombre = document.getElementById("h-nombre").value.trim();
+    if (!nombre) return alert("Ingresa un nombre para el hábito");
+
+    let frecuencia = "diario";
+    if (!frecuenciaEsDiaria) {
+      const diasElegidos = [...document.querySelectorAll(".dia-toggle.activo")].map((b) => b.dataset.dia);
+      if (diasElegidos.length === 0) return alert("Elige al menos un día");
+      frecuencia = diasElegidos.join(",");
     }
-  }
-  actualizarCategorias(tipoInicial);
 
-  document.getElementById("toggle-ingreso").addEventListener("click", () => {
-    document.getElementById("mov-tipo").value = "ingreso";
-    document.getElementById("toggle-ingreso").classList.add("activo-ingreso");
-    document.getElementById("toggle-gasto").classList.remove("activo-gasto");
-    actualizarCategorias("ingreso");
-  });
-  document.getElementById("toggle-gasto").addEventListener("click", () => {
-    document.getElementById("mov-tipo").value = "gasto";
-    document.getElementById("toggle-gasto").classList.add("activo-gasto");
-    document.getElementById("toggle-ingreso").classList.remove("activo-ingreso");
-    actualizarCategorias("gasto");
-  });
-
-  document.getElementById("btn-guardar-movimiento").addEventListener("click", async () => {
     const payload = {
-      tipo: document.getElementById("mov-tipo").value,
-      monto: parseFloat(document.getElementById("mov-monto").value),
-      categoria: document.getElementById("mov-categoria").value,
-      fecha: document.getElementById("mov-fecha").value,
-      nota: document.getElementById("mov-nota").value.trim() || null,
+      nombre,
+      categoria: document.getElementById("h-categoria").value,
+      frecuencia,
+      hora_objetivo: document.getElementById("h-hora").value || null,
+      prioridad: document.getElementById("h-prioridad").value,
     };
-    if (!payload.monto || payload.monto <= 0) return alert("Ingresa un monto válido");
 
     let error;
-    if (movimiento) {
-      ({ error } = await db.from("movimientos").update(payload).eq("id", movimiento.id));
+    if (habito) {
+      ({ error } = await db.from("habitos").update(payload).eq("id", habito.id));
     } else {
-      ({ error } = await db.from("movimientos").insert(payload));
+      ({ error } = await db.from("habitos").insert(payload));
     }
     if (error) return alert("Error: " + error.message);
     cerrarModal();
-    await cargarMovimientos();
-    renderizarDashboard();
+    await cargarHabitos();
+    renderizarHoy();
+    poblarSelectorCalendario();
   });
 }
 
-// ============================================
-// DEUDAS
-// ============================================
-let deudasCache = [];
-
-async function cargarDeudas() {
-  const { data, error } = await db
-    .from("deudas")
-    .select("*")
-    .eq("activa", true)
-    .order("created_at", { ascending: true });
-  if (error) { console.error(error); return; }
-  deudasCache = data;
-  renderizarDeudas();
+async function eliminarHabito(id) {
+  if (!confirm("¿Eliminar este hábito? Se mantiene tu historial de cumplimiento.")) return;
+  const { error } = await db.from("habitos").update({ activo: false }).eq("id", id);
+  if (error) return alert("Error: " + error.message);
+  await cargarHabitos();
+  renderizarHoy();
+  poblarSelectorCalendario();
 }
 
-function renderizarDeudas() {
-  const contenedor = document.getElementById("lista-deudas");
-  if (deudasCache.length === 0) {
-    contenedor.innerHTML = '<p class="vacio">No tienes deudas registradas</p>';
+// ============================================
+// CALENDARIO
+// ============================================
+let mesCalendarioActual = new Date(); // mes que se está viendo
+let habitoSeleccionadoCalendario = null;
+
+function poblarSelectorCalendario() {
+  const select = document.getElementById("selector-habito-calendario");
+  if (habitosCache.length === 0) {
+    select.innerHTML = '<option value="">Sin hábitos</option>';
+    habitoSeleccionadoCalendario = null;
     return;
   }
-
-  contenedor.innerHTML = deudasCache.map((d) => {
-    const saldoRestante = Math.max(d.monto_total - d.pagado_acumulado, 0);
-    const porcentaje = Math.min((d.pagado_acumulado / d.monto_total) * 100, 100);
-    const mesesFaltantes = d.pago_mensual_planeado > 0
-      ? Math.ceil(saldoRestante / d.pago_mensual_planeado)
-      : 0;
-    const fechaEstimada = estimarFechaFin(mesesFaltantes);
-
-    return `
-      <div class="tarjeta-deuda">
-        <div class="tarjeta-deuda-header">
-          <span class="tarjeta-deuda-nombre">${escapeHtml(d.nombre)}</span>
-          <div class="fila-acciones">
-            <button onclick="abrirModalDeuda('${d.id}')">Editar</button>
-            <button onclick="eliminarDeuda('${d.id}')">Eliminar</button>
-          </div>
-        </div>
-        <div class="barra-progreso">
-          <div class="barra-progreso-fill" style="width:${porcentaje}%"></div>
-        </div>
-        <div class="deuda-datos">
-          <div><span>Total</span>${formatoMoneda(d.monto_total)}</div>
-          <div><span>Pagado</span>${formatoMoneda(d.pagado_acumulado)}</div>
-          <div><span>Saldo</span>${formatoMoneda(saldoRestante)}</div>
-          <div><span>Pago mensual</span>${formatoMoneda(d.pago_mensual_planeado)}</div>
-          <div><span>Termina</span>${saldoRestante <= 0 ? "Pagada" : fechaEstimada}</div>
-          <div><span>Avance</span>${porcentaje.toFixed(0)}%</div>
-        </div>
-        <div class="deuda-acciones">
-          <button class="btn-secundario btn-pequeno" onclick="registrarPagoDeuda('${d.id}')">Registrar pago</button>
-        </div>
-      </div>
-    `;
-  }).join("");
+  select.innerHTML = habitosCache.map((h) => `<option value="${h.id}">${escapeHtml(h.nombre)}</option>`).join("");
+  if (!habitoSeleccionadoCalendario || !habitosCache.some((h) => h.id === habitoSeleccionadoCalendario)) {
+    habitoSeleccionadoCalendario = habitosCache[0].id;
+  }
+  select.value = habitoSeleccionadoCalendario;
 }
 
-function estimarFechaFin(mesesFaltantes) {
-  const fecha = new Date();
-  fecha.setMonth(fecha.getMonth() + mesesFaltantes);
-  return fecha.toLocaleDateString("es-CO", { month: "short", year: "numeric" });
-}
+document.getElementById("selector-habito-calendario").addEventListener("change", (e) => {
+  habitoSeleccionadoCalendario = e.target.value;
+  renderizarCalendario();
+});
 
-document.getElementById("btn-nueva-deuda").addEventListener("click", () => abrirModalDeuda());
+document.getElementById("cal-mes-anterior").addEventListener("click", () => {
+  mesCalendarioActual.setMonth(mesCalendarioActual.getMonth() - 1);
+  renderizarCalendario();
+});
+document.getElementById("cal-mes-siguiente").addEventListener("click", () => {
+  mesCalendarioActual.setMonth(mesCalendarioActual.getMonth() + 1);
+  renderizarCalendario();
+});
 
-function abrirModalDeuda(id) {
-  const deuda = id ? deudasCache.find((d) => d.id === id) : null;
-
-  abrirModal(`
-    <h3>${deuda ? "Editar" : "Agregar"} deuda</h3>
-    <div class="campo">
-      <label>Nombre</label>
-      <input type="text" id="deuda-nombre" value="${deuda ? escapeHtml(deuda.nombre) : ""}" placeholder="Ej: Tarjeta de crédito">
-    </div>
-    <div class="campo">
-      <label>Monto total</label>
-      <input type="number" id="deuda-monto-total" min="0" value="${deuda ? deuda.monto_total : ""}" placeholder="0">
-    </div>
-    <div class="campo">
-      <label>Pago mensual planeado</label>
-      <input type="number" id="deuda-pago-mensual" min="0" value="${deuda ? deuda.pago_mensual_planeado : ""}" placeholder="0">
-    </div>
-    <div class="campo">
-      <label>Pagado hasta ahora</label>
-      <input type="number" id="deuda-pagado" min="0" value="${deuda ? deuda.pagado_acumulado : 0}" placeholder="0">
-    </div>
-    <div class="modal-acciones">
-      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn-primario" id="btn-guardar-deuda">Guardar</button>
-    </div>
-  `);
-
-  document.getElementById("btn-guardar-deuda").addEventListener("click", async () => {
-    const payload = {
-      nombre: document.getElementById("deuda-nombre").value.trim(),
-      monto_total: parseFloat(document.getElementById("deuda-monto-total").value),
-      pago_mensual_planeado: parseFloat(document.getElementById("deuda-pago-mensual").value),
-      pagado_acumulado: parseFloat(document.getElementById("deuda-pagado").value) || 0,
-    };
-    if (!payload.nombre || !payload.monto_total || !payload.pago_mensual_planeado) {
-      return alert("Completa nombre, monto total y pago mensual");
-    }
-
-    let error;
-    if (deuda) {
-      ({ error } = await db.from("deudas").update(payload).eq("id", deuda.id));
-    } else {
-      ({ error } = await db.from("deudas").insert(payload));
-    }
-    if (error) return alert("Error: " + error.message);
-    cerrarModal();
-    await cargarDeudas();
-    renderizarDashboard();
-  });
-}
-
-async function eliminarDeuda(id) {
-  if (!confirm("¿Eliminar esta deuda?")) return;
-  const { error } = await db.from("deudas").delete().eq("id", id);
-  if (error) return alert("Error: " + error.message);
-  await cargarDeudas();
-  renderizarDashboard();
-}
-
-function registrarPagoDeuda(id) {
-  const deuda = deudasCache.find((d) => d.id === id);
-  abrirModal(`
-    <h3>Registrar pago — ${escapeHtml(deuda.nombre)}</h3>
-    <p class="fila-detalle" style="margin-bottom:14px;">Saldo restante: ${formatoMoneda(deuda.monto_total - deuda.pagado_acumulado)}</p>
-    <div class="campo">
-      <label>Monto a abonar</label>
-      <input type="number" id="pago-monto" min="0" value="${deuda.pago_mensual_planeado}">
-    </div>
-    <div class="modal-acciones">
-      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn-primario" id="btn-confirmar-pago">Confirmar pago</button>
-    </div>
-  `);
-
-  document.getElementById("btn-confirmar-pago").addEventListener("click", async () => {
-    const monto = parseFloat(document.getElementById("pago-monto").value);
-    if (!monto || monto <= 0) return alert("Ingresa un monto válido");
-
-    const nuevoPagado = deuda.pagado_acumulado + monto;
-
-    const { error: errorDeuda } = await db
-      .from("deudas")
-      .update({ pagado_acumulado: nuevoPagado })
-      .eq("id", deuda.id);
-    if (errorDeuda) return alert("Error: " + errorDeuda.message);
-
-    // También se registra como movimiento (gasto) en el historial
-    await db.from("movimientos").insert({
-      tipo: "gasto",
-      monto,
-      categoria: "Pago de deuda",
-      fecha: fechaHoy(),
-      nota: `Pago: ${deuda.nombre}`,
-    });
-
-    cerrarModal();
-    await Promise.all([cargarDeudas(), cargarMovimientos()]);
-    renderizarDashboard();
-  });
-}
-
-// ============================================
-// GASTOS FIJOS
-// ============================================
-let gastosFijosCache = [];
-let pagosDelMesCache = [];
-
-async function cargarGastosFijos() {
-  const { data: fijos, error: errorFijos } = await db
-    .from("gastos_fijos")
-    .select("*")
-    .eq("activo", true)
-    .order("created_at", { ascending: true });
-  if (errorFijos) { console.error(errorFijos); return; }
-  gastosFijosCache = fijos;
-
-  const { data: pagos, error: errorPagos } = await db
-    .from("gastos_fijos_pagos")
-    .select("*")
-    .eq("mes", mesActual());
-  if (errorPagos) { console.error(errorPagos); return; }
-  pagosDelMesCache = pagos;
-
-  renderizarGastosFijos();
-}
-
-function estaPagadoEsteMes(gastoFijoId) {
-  return pagosDelMesCache.some((p) => p.gasto_fijo_id === gastoFijoId);
-}
-
-function renderizarGastosFijos() {
-  const contenedor = document.getElementById("lista-gastos-fijos");
-  if (gastosFijosCache.length === 0) {
-    contenedor.innerHTML = '<p class="vacio">No tienes gastos fijos registrados</p>';
+function renderizarCalendario() {
+  if (!habitoSeleccionadoCalendario) {
+    document.getElementById("calendario-grid").innerHTML = '<p class="vacio">Crea un hábito primero</p>';
     return;
   }
+  const habito = habitosCache.find((h) => h.id === habitoSeleccionadoCalendario);
+  if (!habito) return;
 
-  contenedor.innerHTML = gastosFijosCache.map((g) => {
-    const pagado = estaPagadoEsteMes(g.id);
-    return `
-      <div class="fila">
-        <input type="checkbox" class="checkbox-pagado" ${pagado ? "checked" : ""}
-          onchange="togglePagoGastoFijo('${g.id}', this.checked)">
-        <div class="fila-info">
-          <span class="fila-titulo">${escapeHtml(g.nombre)}</span>
-          <span class="fila-detalle">${escapeHtml(g.categoria)}</span>
-        </div>
-        <span class="fila-monto">${formatoMoneda(g.monto)}</span>
-        <span class="badge ${pagado ? "badge-ok" : "badge-pendiente"}">${pagado ? "Pagado" : "Pendiente"}</span>
-        <div class="fila-acciones">
-          <button onclick="abrirModalGastoFijo('${g.id}')">Editar</button>
-          <button onclick="eliminarGastoFijo('${g.id}')">Eliminar</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
+  document.getElementById("cal-racha-actual").textContent = calcularRachaActual(habito);
+  document.getElementById("cal-racha-larga").textContent = calcularRachaMasLarga(habito);
 
-async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
-  const gasto = gastosFijosCache.find((g) => g.id === gastoFijoId);
-  const mes = mesActual();
+  document.getElementById("cal-mes-titulo").textContent =
+    mesCalendarioActual.toLocaleDateString("es-CO", { month: "long", year: "numeric" });
 
-  if (marcarComoPagado) {
-    // Crear el movimiento de gasto automáticamente
-    const { data: movimiento, error: errorMov } = await db
-      .from("movimientos")
-      .insert({
-        tipo: "gasto",
-        monto: gasto.monto,
-        categoria: gasto.categoria,
-        fecha: fechaHoy(),
-        nota: `Pago automático: ${gasto.nombre}`,
-      })
-      .select()
-      .single();
-    if (errorMov) return alert("Error: " + errorMov.message);
+  const anio = mesCalendarioActual.getFullYear();
+  const mes = mesCalendarioActual.getMonth();
+  const primerDiaSemana = new Date(anio, mes, 1).getDay();
+  const diasEnMes = new Date(anio, mes + 1, 0).getDate();
 
-    const { error: errorPago } = await db.from("gastos_fijos_pagos").insert({
-      gasto_fijo_id: gastoFijoId,
-      mes,
-      movimiento_id: movimiento.id,
-    });
-    if (errorPago) return alert("Error: " + errorPago.message);
-  } else {
-    // Desmarcar: eliminar el registro de pago y su movimiento asociado
-    const pago = pagosDelMesCache.find((p) => p.gasto_fijo_id === gastoFijoId);
-    if (pago) {
-      if (pago.movimiento_id) {
-        await db.from("movimientos").delete().eq("id", pago.movimiento_id);
-      }
-      await db.from("gastos_fijos_pagos").delete().eq("id", pago.id);
-    }
+  let celdas = [];
+  for (let i = 0; i < primerDiaSemana; i++) celdas.push('<div class="dia-celda dia-vacia"></div>');
+
+  for (let dia = 1; dia <= diasEnMes; dia++) {
+    const fechaIso = `${anio}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    const reg = registroDe(habito.id, fechaIso);
+    let clase = "";
+    if (reg && reg.estado === "completado") clase = "dia-completado";
+    else if (reg && reg.estado === "saltado") clase = "dia-saltado";
+    celdas.push(`<div class="dia-celda ${clase}">${dia}</div>`);
   }
 
-  await Promise.all([cargarGastosFijos(), cargarMovimientos()]);
-  renderizarDashboard();
-}
-
-document.getElementById("btn-nuevo-gasto-fijo").addEventListener("click", () => abrirModalGastoFijo());
-
-function abrirModalGastoFijo(id) {
-  const gasto = id ? gastosFijosCache.find((g) => g.id === id) : null;
-
-  abrirModal(`
-    <h3>${gasto ? "Editar" : "Agregar"} gasto fijo</h3>
-    <div class="campo">
-      <label>Nombre</label>
-      <input type="text" id="gf-nombre" value="${gasto ? escapeHtml(gasto.nombre) : ""}" placeholder="Ej: Arriendo">
-    </div>
-    <div class="campo">
-      <label>Monto</label>
-      <input type="number" id="gf-monto" min="0" value="${gasto ? gasto.monto : ""}" placeholder="0">
-    </div>
-    <div class="campo">
-      <label>Categoría</label>
-      <select id="gf-categoria"></select>
-    </div>
-    <div class="modal-acciones">
-      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn-primario" id="btn-guardar-gasto-fijo">Guardar</button>
-    </div>
-  `);
-
-  const select = document.getElementById("gf-categoria");
-  select.innerHTML = categoriasGasto.map((c) => `<option value="${c}">${c}</option>`).join("");
-  if (gasto) select.value = gasto.categoria;
-
-  document.getElementById("btn-guardar-gasto-fijo").addEventListener("click", async () => {
-    const payload = {
-      nombre: document.getElementById("gf-nombre").value.trim(),
-      monto: parseFloat(document.getElementById("gf-monto").value),
-      categoria: document.getElementById("gf-categoria").value,
-    };
-    if (!payload.nombre || !payload.monto) return alert("Completa nombre y monto");
-
-    let error;
-    if (gasto) {
-      ({ error } = await db.from("gastos_fijos").update(payload).eq("id", gasto.id));
-    } else {
-      ({ error } = await db.from("gastos_fijos").insert(payload));
-    }
-    if (error) return alert("Error: " + error.message);
-    cerrarModal();
-    await cargarGastosFijos();
-    renderizarDashboard();
-  });
-}
-
-async function eliminarGastoFijo(id) {
-  if (!confirm("¿Eliminar este gasto fijo? (no borra los pagos ya registrados)")) return;
-  const { error } = await db.from("gastos_fijos").update({ activo: false }).eq("id", id);
-  if (error) return alert("Error: " + error.message);
-  await cargarGastosFijos();
-  renderizarDashboard();
-}
-
-// ============================================
-// DASHBOARD — cálculos
-// ============================================
-function renderizarDashboard() {
-  const mes = mesActual();
-
-  // Balance actual: todo el historial
-  const balance = movimientosCache.reduce((acc, m) => {
-    return acc + (m.tipo === "ingreso" ? m.monto : -m.monto);
-  }, 0);
-
-  // Ingresos y gastos solo del mes actual
-  const movimientosDelMes = movimientosCache.filter((m) => m.fecha.slice(0, 7) === mes);
-  const ingresosMes = movimientosDelMes
-    .filter((m) => m.tipo === "ingreso")
-    .reduce((acc, m) => acc + m.monto, 0);
-  const gastosMes = movimientosDelMes
-    .filter((m) => m.tipo === "gasto")
-    .reduce((acc, m) => acc + m.monto, 0);
-
-  // Comprometido este mes: gastos fijos pendientes (no pagados)
-  const gastosFijosPendientes = gastosFijosCache
-    .filter((g) => !estaPagadoEsteMes(g.id))
-    .reduce((acc, g) => acc + g.monto, 0);
-
-  const comprometido = gastosFijosPendientes;
-  const dineroLibre = balance - comprometido;
-
-  // Deuda total pendiente (todas las deudas activas)
-  const deudaTotal = deudasCache.reduce((acc, d) => {
-    return acc + Math.max(d.monto_total - d.pagado_acumulado, 0);
-  }, 0);
-
-  document.getElementById("d-balance").textContent = formatoMoneda(balance);
-  document.getElementById("d-comprometido").textContent = formatoMoneda(comprometido);
-  document.getElementById("d-libre").textContent = formatoMoneda(dineroLibre);
-  document.getElementById("d-deuda").textContent = formatoMoneda(deudaTotal);
-  document.getElementById("d-ingresos").textContent = formatoMoneda(ingresosMes);
-  document.getElementById("d-gastos").textContent = formatoMoneda(gastosMes);
-
-  // Lista de gastos fijos del mes (en el dashboard)
-  const contenedorGF = document.getElementById("d-lista-gastos-fijos");
-  if (gastosFijosCache.length === 0) {
-    contenedorGF.innerHTML = '<p class="vacio">No tienes gastos fijos registrados</p>';
-  } else {
-    contenedorGF.innerHTML = gastosFijosCache.map((g) => {
-      const pagado = estaPagadoEsteMes(g.id);
-      return `
-        <div class="fila">
-          <input type="checkbox" class="checkbox-pagado" ${pagado ? "checked" : ""}
-            onchange="togglePagoGastoFijo('${g.id}', this.checked)">
-          <div class="fila-info">
-            <span class="fila-titulo">${escapeHtml(g.nombre)}</span>
-          </div>
-          <span class="fila-monto">${formatoMoneda(g.monto)}</span>
-          <span class="badge ${pagado ? "badge-ok" : "badge-pendiente"}">${pagado ? "Pagado" : "Pendiente"}</span>
-        </div>
-      `;
-    }).join("");
-  }
-
-  // Últimos 5 movimientos
-  const contenedorUM = document.getElementById("d-ultimos-movimientos");
-  const ultimos = movimientosCache.slice(0, 5);
-  if (ultimos.length === 0) {
-    contenedorUM.innerHTML = '<p class="vacio">Aún no hay movimientos</p>';
-  } else {
-    contenedorUM.innerHTML = ultimos.map((m) => `
-      <div class="fila">
-        <div class="fila-info">
-          <span class="fila-titulo">${escapeHtml(m.categoria)}</span>
-          <span class="fila-detalle">${formatoFecha(m.fecha)}</span>
-        </div>
-        <span class="fila-monto ${m.tipo === "ingreso" ? "positivo" : "negativo"}">
-          ${m.tipo === "ingreso" ? "+" : "-"}${formatoMoneda(m.monto)}
-        </span>
-      </div>
-    `).join("");
-  }
+  document.getElementById("calendario-grid").innerHTML = celdas.join("");
 }
 
 // ============================================

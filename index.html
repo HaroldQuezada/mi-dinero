@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Dinero</title>
+<title>Mis Hábitos</title>
+<link rel="stylesheet" href="../estilos-base.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,8 +12,8 @@
 <!-- ===================== LOGIN ===================== -->
 <div id="vista-login" class="vista">
   <div class="login-box">
-    <h1>Mi Dinero</h1>
-    <p class="subtitulo">Control personal de finanzas</p>
+    <h1>Mis Hábitos</h1>
+    <p class="subtitulo">Rutinas y organización diaria</p>
     <form id="form-login">
       <label>Correo</label>
       <input type="email" id="login-email" required autocomplete="email">
@@ -29,102 +30,70 @@
 <div id="vista-app" class="vista oculto">
 
   <header class="topbar">
-    <div class="topbar-titulo">Mi Dinero</div>
+    <a href="../index.html" class="btn-link" style="display:inline;width:auto;margin:0;">← Inicio</a>
+    <div class="topbar-titulo">Mis Hábitos</div>
     <button id="btn-logout" class="btn-link">Salir</button>
   </header>
 
   <nav class="tabs">
-    <button class="tab activo" data-tab="dashboard">Dashboard</button>
-    <button class="tab" data-tab="movimientos">Movimientos</button>
-    <button class="tab" data-tab="deudas">Deudas</button>
-    <button class="tab" data-tab="gastos-fijos">Gastos fijos</button>
+    <button class="tab activo" data-tab="hoy">Hoy</button>
+    <button class="tab" data-tab="habitos">Hábitos</button>
+    <button class="tab" data-tab="calendario">Calendario</button>
   </nav>
 
   <main class="contenido">
 
-    <!-- ---------- DASHBOARD ---------- -->
-    <section id="panel-dashboard" class="panel">
-      <div class="tarjetas">
-        <div class="tarjeta">
-          <span class="tarjeta-label">Balance actual</span>
-          <span class="tarjeta-valor" id="d-balance">$0</span>
-        </div>
-        <div class="tarjeta">
-          <span class="tarjeta-label">Comprometido este mes</span>
-          <span class="tarjeta-valor" id="d-comprometido">$0</span>
-        </div>
-        <div class="tarjeta tarjeta-destacada">
-          <span class="tarjeta-label">Dinero libre real</span>
-          <span class="tarjeta-valor" id="d-libre">$0</span>
-        </div>
-        <div class="tarjeta">
-          <span class="tarjeta-label">Deuda total pendiente</span>
-          <span class="tarjeta-valor" id="d-deuda">$0</span>
-        </div>
-      </div>
+    <!-- ---------- HOY ---------- -->
+    <section id="panel-hoy" class="panel">
+      <div class="fecha-hoy" id="fecha-hoy">Hoy</div>
+      <div class="resumen-hoy" id="resumen-hoy">0 de 0 completados</div>
 
-      <div class="fila-doble">
-        <div class="bloque">
-          <h2>Ingresos del mes</h2>
-          <p class="cifra-grande positivo" id="d-ingresos">$0</p>
-        </div>
-        <div class="bloque">
-          <h2>Gastos del mes</h2>
-          <p class="cifra-grande negativo" id="d-gastos">$0</p>
-        </div>
-      </div>
-
-      <div class="bloque">
-        <h2>Gastos fijos de este mes</h2>
-        <div id="d-lista-gastos-fijos" class="lista-simple">
-          <p class="vacio">Cargando...</p>
-        </div>
-      </div>
-
-      <div class="bloque">
-        <h2>Últimos movimientos</h2>
-        <div id="d-ultimos-movimientos" class="lista-simple">
-          <p class="vacio">Cargando...</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ---------- MOVIMIENTOS ---------- -->
-    <section id="panel-movimientos" class="panel oculto">
-      <div class="panel-header">
-        <h2>Movimientos</h2>
-        <button class="btn-primario" id="btn-nuevo-movimiento">+ Agregar</button>
-      </div>
-
-      <div class="filtro-mes">
-        <label>Mes:</label>
-        <input type="month" id="filtro-mes-movimientos">
-      </div>
-
-      <div id="lista-movimientos" class="lista-tabla">
+      <div id="lista-hoy" class="lista-habitos-hoy">
         <p class="vacio">Cargando...</p>
       </div>
     </section>
 
-    <!-- ---------- DEUDAS ---------- -->
-    <section id="panel-deudas" class="panel oculto">
+    <!-- ---------- HÁBITOS (gestión) ---------- -->
+    <section id="panel-habitos" class="panel oculto">
       <div class="panel-header">
-        <h2>Deudas</h2>
-        <button class="btn-primario" id="btn-nueva-deuda">+ Agregar deuda</button>
+        <h2>Mis hábitos</h2>
+        <button class="btn-primario" id="btn-nuevo-habito">+ Agregar</button>
       </div>
-      <div id="lista-deudas" class="lista-tarjetas">
+      <div id="lista-habitos" class="lista-tabla">
         <p class="vacio">Cargando...</p>
       </div>
     </section>
 
-    <!-- ---------- GASTOS FIJOS ---------- -->
-    <section id="panel-gastos-fijos" class="panel oculto">
+    <!-- ---------- CALENDARIO ---------- -->
+    <section id="panel-calendario" class="panel oculto">
       <div class="panel-header">
-        <h2>Gastos fijos mensuales</h2>
-        <button class="btn-primario" id="btn-nuevo-gasto-fijo">+ Agregar</button>
+        <h2>Calendario</h2>
+        <select id="selector-habito-calendario"></select>
       </div>
-      <div id="lista-gastos-fijos" class="lista-tabla">
-        <p class="vacio">Cargando...</p>
+
+      <div class="rachas-resumen">
+        <div class="bloque-racha">
+          <span class="tarjeta-label">Racha actual</span>
+          <span class="tarjeta-valor" id="cal-racha-actual">0</span>
+        </div>
+        <div class="bloque-racha">
+          <span class="tarjeta-label">Racha más larga</span>
+          <span class="tarjeta-valor" id="cal-racha-larga">0</span>
+        </div>
+      </div>
+
+      <div class="calendario-nav">
+        <button id="cal-mes-anterior" class="btn-secundario btn-pequeno">←</button>
+        <span id="cal-mes-titulo">-</span>
+        <button id="cal-mes-siguiente" class="btn-secundario btn-pequeno">→</button>
+      </div>
+
+      <div class="calendario-grid" id="calendario-grid"></div>
+
+      <div class="calendario-leyenda">
+        <span><i class="punto punto-completado"></i> Completado</span>
+        <span><i class="punto punto-saltado"></i> Saltado</span>
+        <span><i class="punto punto-vacio"></i> Sin marcar</span>
       </div>
     </section>
 
@@ -133,9 +102,7 @@
 
 <!-- ===================== MODAL GENÉRICO ===================== -->
 <div id="modal-overlay" class="modal-overlay oculto">
-  <div class="modal-box" id="modal-box">
-    <!-- contenido inyectado por JS -->
-  </div>
+  <div class="modal-box" id="modal-box"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
