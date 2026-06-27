@@ -137,7 +137,7 @@ function renderizarMovimientos() {
     <div class="fila">
       <div class="fila-info">
         <span class="fila-titulo">${escapeHtml(m.categoria)}</span>
-        <span class="fila-detalle">${formatoFecha(m.fecha)}${m.nota ? " · " + escapeHtml(m.nota) : ""}</span>
+        <span class="fila-detalle">${formatoFecha(m.fecha)} · ${descripcionMetodoPago(m.metodo_pago)}${m.nota ? " · " + escapeHtml(m.nota) : ""}</span>
       </div>
       <span class="fila-monto ${m.tipo === "ingreso" ? "positivo" : "negativo"}">
         ${m.tipo === "ingreso" ? "+" : "-"}${formatoMoneda(m.monto)}
@@ -148,6 +148,17 @@ function renderizarMovimientos() {
       </div>
     </div>
   `).join("");
+}
+
+function descripcionMetodoPago(metodoPago) {
+  if (!metodoPago || metodoPago === "efectivo") return "Efectivo";
+  if (metodoPago === "debito") return "Débito";
+  if (metodoPago.startsWith("credito:")) {
+    const deudaId = metodoPago.split(":")[1];
+    const deuda = deudasCache.find((d) => d.id === deudaId);
+    return "Crédito: " + (deuda ? deuda.nombre : "tarjeta eliminada");
+  }
+  return metodoPago;
 }
 
 document.getElementById("filtro-mes-movimientos").value = mesActual();
@@ -166,8 +177,15 @@ function escapeHtml(texto) {
 
 async function eliminarMovimiento(id) {
   if (!confirm("¿Eliminar este movimiento?")) return;
+  const movimiento = movimientosCache.find((m) => m.id === id);
   const { error } = await db.from("movimientos").delete().eq("id", id);
   if (error) return alert("Error: " + error.message);
+
+  if (movimiento && movimiento.metodo_pago && movimiento.metodo_pago.startsWith("credito:")) {
+    await ajustarSaldoTarjeta(movimiento.metodo_pago, -movimiento.monto);
+    await cargarDeudas();
+  }
+
   await cargarMovimientos();
   renderizarDashboard();
 }
@@ -191,7 +209,12 @@ function abrirModalMovimiento(id) {
     </div>
     <div class="campo">
       <label>Categoría</label>
-      <select id="mov-categoria"></select>
+      <input type="text" id="mov-categoria" list="lista-categorias-sugeridas" placeholder="Escribe o elige una">
+      <datalist id="lista-categorias-sugeridas"></datalist>
+    </div>
+    <div class="campo" id="campo-metodo-pago">
+      <label>Método de pago</label>
+      <select id="mov-metodo-pago"></select>
     </div>
     <div class="campo">
       <label>Fecha</label>
@@ -208,37 +231,69 @@ function abrirModalMovimiento(id) {
   `);
 
   function actualizarCategorias(tipo) {
-    const select = document.getElementById("mov-categoria");
-    const lista = tipo === "ingreso" ? categoriasIngreso : categoriasGasto;
-    select.innerHTML = lista.map((c) => `<option value="${c}">${c}</option>`).join("");
-    if (movimiento && lista.includes(movimiento.categoria)) {
-      select.value = movimiento.categoria;
-    }
+    const datalist = document.getElementById("lista-categorias-sugeridas");
+    const sugeridas = tipo === "ingreso" ? categoriasIngreso : categoriasGasto;
+    const usadas = [...new Set(
+      movimientosCache.filter((m) => m.tipo === tipo).map((m) => m.categoria)
+    )];
+    const todas = [...new Set([...sugeridas, ...usadas])];
+    datalist.innerHTML = todas.map((c) => `<option value="${escapeHtml(c)}"></option>`).join("");
   }
   actualizarCategorias(tipoInicial);
+  document.getElementById("mov-categoria").value = movimiento ? movimiento.categoria : "";
+
+  function actualizarMetodosPago() {
+    const select = document.getElementById("mov-metodo-pago");
+    const tarjetas = deudasCache.filter((d) => d.tipo === "tarjeta_credito");
+    const opciones = [
+      `<option value="efectivo">Efectivo</option>`,
+      `<option value="debito">Débito</option>`,
+      ...tarjetas.map((t) => `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`),
+    ];
+    select.innerHTML = opciones.join("");
+    if (movimiento && movimiento.metodo_pago) select.value = movimiento.metodo_pago;
+  }
+
+  function actualizarVisibilidadMetodoPago(tipo) {
+    document.getElementById("campo-metodo-pago").classList.toggle("oculto", tipo !== "gasto");
+  }
+  actualizarMetodosPago();
+  actualizarVisibilidadMetodoPago(tipoInicial);
 
   document.getElementById("toggle-ingreso").addEventListener("click", () => {
     document.getElementById("mov-tipo").value = "ingreso";
     document.getElementById("toggle-ingreso").classList.add("activo-ingreso");
     document.getElementById("toggle-gasto").classList.remove("activo-gasto");
     actualizarCategorias("ingreso");
+    actualizarVisibilidadMetodoPago("ingreso");
   });
   document.getElementById("toggle-gasto").addEventListener("click", () => {
     document.getElementById("mov-tipo").value = "gasto";
     document.getElementById("toggle-gasto").classList.add("activo-gasto");
     document.getElementById("toggle-ingreso").classList.remove("activo-ingreso");
     actualizarCategorias("gasto");
+    actualizarVisibilidadMetodoPago("gasto");
   });
 
   document.getElementById("btn-guardar-movimiento").addEventListener("click", async () => {
+    const tipo = document.getElementById("mov-tipo").value;
+    const metodoPago = tipo === "gasto" ? document.getElementById("mov-metodo-pago").value : "efectivo";
     const payload = {
-      tipo: document.getElementById("mov-tipo").value,
+      tipo,
       monto: parseFloat(document.getElementById("mov-monto").value),
-      categoria: document.getElementById("mov-categoria").value,
+      categoria: document.getElementById("mov-categoria").value.trim(),
       fecha: document.getElementById("mov-fecha").value,
       nota: document.getElementById("mov-nota").value.trim() || null,
+      metodo_pago: metodoPago,
     };
     if (!payload.monto || payload.monto <= 0) return alert("Ingresa un monto válido");
+    if (!payload.categoria) return alert("Ingresa una categoría");
+
+    // Si se está editando, primero revertimos el efecto que el movimiento anterior
+    // tuvo sobre el saldo de una tarjeta de crédito (si aplicaba)
+    if (movimiento && movimiento.metodo_pago && movimiento.metodo_pago.startsWith("credito:")) {
+      await ajustarSaldoTarjeta(movimiento.metodo_pago, -movimiento.monto);
+    }
 
     let error;
     if (movimiento) {
@@ -247,16 +302,39 @@ function abrirModalMovimiento(id) {
       ({ error } = await db.from("movimientos").insert(payload));
     }
     if (error) return alert("Error: " + error.message);
+
+    // Si el nuevo método de pago es una tarjeta de crédito, su gasto AUMENTA el saldo que se debe
+    if (payload.metodo_pago.startsWith("credito:")) {
+      await ajustarSaldoTarjeta(payload.metodo_pago, payload.monto);
+    }
+
     cerrarModal();
-    await cargarMovimientos();
+    await Promise.all([cargarMovimientos(), cargarDeudas()]);
     renderizarDashboard();
   });
+}
+
+// Suma (o resta, si delta es negativo) un monto al saldo de una tarjeta de crédito.
+// Lee el saldo actual directo de la base de datos (no de la caché) para evitar
+// que dos ajustes seguidos pisen el valor del otro.
+// metodoPago viene en formato "credito:<id-de-la-deuda>"
+async function ajustarSaldoTarjeta(metodoPago, delta) {
+  const deudaId = metodoPago.split(":")[1];
+  const { data: deuda, error: errorLectura } = await db
+    .from("deudas")
+    .select("saldo_tarjeta")
+    .eq("id", deudaId)
+    .maybeSingle();
+  if (errorLectura || !deuda) return; // la tarjeta pudo haber sido eliminada después
+  const nuevoSaldo = Math.max(deuda.saldo_tarjeta + delta, 0);
+  await db.from("deudas").update({ saldo_tarjeta: nuevoSaldo }).eq("id", deudaId);
 }
 
 // ============================================
 // DEUDAS
 // ============================================
 let deudasCache = [];
+let deudasPagosDelMesCache = [];
 
 async function cargarDeudas() {
   const { data, error } = await db
@@ -266,7 +344,19 @@ async function cargarDeudas() {
     .order("created_at", { ascending: true });
   if (error) { console.error(error); return; }
   deudasCache = data;
+
+  const { data: pagos, error: errorPagos } = await db
+    .from("deudas_pagos")
+    .select("*")
+    .eq("mes", mesActual());
+  if (errorPagos) { console.error(errorPagos); return; }
+  deudasPagosDelMesCache = pagos;
+
   renderizarDeudas();
+}
+
+function estaDeudaPagadaEsteMes(deudaId) {
+  return deudasPagosDelMesCache.some((p) => p.deuda_id === deudaId);
 }
 
 function renderizarDeudas() {
@@ -277,6 +367,31 @@ function renderizarDeudas() {
   }
 
   contenedor.innerHTML = deudasCache.map((d) => {
+    const pagadoEsteMes = estaDeudaPagadaEsteMes(d.id);
+    const badgePago = `<span class="badge ${pagadoEsteMes ? "badge-ok" : "badge-pendiente"}">${pagadoEsteMes ? "Pagado este mes" : "Pendiente este mes"}</span>`;
+
+    if (d.tipo === "tarjeta_credito") {
+      return `
+        <div class="tarjeta-deuda">
+          <div class="tarjeta-deuda-header">
+            <span class="tarjeta-deuda-nombre">💳 ${escapeHtml(d.nombre)}</span>
+            <div class="fila-acciones">
+              <button onclick="abrirModalDeuda('${d.id}')">Editar</button>
+              <button onclick="eliminarDeuda('${d.id}')">Eliminar</button>
+            </div>
+          </div>
+          <div class="deuda-datos">
+            <div><span>Saldo actual</span>${formatoMoneda(d.saldo_tarjeta)}</div>
+            <div><span>Pago mensual</span>${formatoMoneda(d.pago_mensual_planeado)}</div>
+            <div><span>Este mes</span>${badgePago}</div>
+          </div>
+          <div class="deuda-acciones">
+            <button class="btn-secundario btn-pequeno" onclick="registrarPagoDeuda('${d.id}')">Registrar pago</button>
+          </div>
+        </div>
+      `;
+    }
+
     const saldoRestante = Math.max(d.monto_total - d.pagado_acumulado, 0);
     const porcentaje = Math.min((d.pagado_acumulado / d.monto_total) * 100, 100);
     const mesesFaltantes = d.pago_mensual_planeado > 0
@@ -302,7 +417,7 @@ function renderizarDeudas() {
           <div><span>Saldo</span>${formatoMoneda(saldoRestante)}</div>
           <div><span>Pago mensual</span>${formatoMoneda(d.pago_mensual_planeado)}</div>
           <div><span>Termina</span>${saldoRestante <= 0 ? "Pagada" : fechaEstimada}</div>
-          <div><span>Avance</span>${porcentaje.toFixed(0)}%</div>
+          <div><span>Este mes</span>${badgePago}</div>
         </div>
         <div class="deuda-acciones">
           <button class="btn-secundario btn-pequeno" onclick="registrarPagoDeuda('${d.id}')">Registrar pago</button>
@@ -322,24 +437,44 @@ document.getElementById("btn-nueva-deuda").addEventListener("click", () => abrir
 
 function abrirModalDeuda(id) {
   const deuda = id ? deudasCache.find((d) => d.id === id) : null;
+  const tipoInicial = deuda ? deuda.tipo : "normal";
 
   abrirModal(`
     <h3>${deuda ? "Editar" : "Agregar"} deuda</h3>
     <div class="campo">
-      <label>Nombre</label>
-      <input type="text" id="deuda-nombre" value="${deuda ? escapeHtml(deuda.nombre) : ""}" placeholder="Ej: Tarjeta de crédito">
+      <label>Tipo</label>
+      <div class="toggle-tipo">
+        <button type="button" id="deuda-tipo-normal" class="${tipoInicial === "normal" ? "activo-ingreso" : ""}">Deuda normal</button>
+        <button type="button" id="deuda-tipo-tarjeta" class="${tipoInicial === "tarjeta_credito" ? "activo-ingreso" : ""}">Tarjeta de crédito</button>
+      </div>
     </div>
+    <input type="hidden" id="deuda-tipo" value="${tipoInicial}">
     <div class="campo">
-      <label>Monto total</label>
-      <input type="number" id="deuda-monto-total" min="0" value="${deuda ? deuda.monto_total : ""}" placeholder="0">
+      <label>Nombre</label>
+      <input type="text" id="deuda-nombre" value="${deuda ? escapeHtml(deuda.nombre) : ""}" placeholder="Ej: Préstamo carro / Tarjeta Visa">
     </div>
+
+    <div id="campos-deuda-normal" class="${tipoInicial === "tarjeta_credito" ? "oculto" : ""}">
+      <div class="campo">
+        <label>Monto total</label>
+        <input type="number" id="deuda-monto-total" min="0" value="${deuda && deuda.tipo !== "tarjeta_credito" ? deuda.monto_total : ""}" placeholder="0">
+      </div>
+      <div class="campo">
+        <label>Pagado hasta ahora</label>
+        <input type="number" id="deuda-pagado" min="0" value="${deuda && deuda.tipo !== "tarjeta_credito" ? deuda.pagado_acumulado : 0}" placeholder="0">
+      </div>
+    </div>
+
+    <div id="campos-deuda-tarjeta" class="${tipoInicial === "tarjeta_credito" ? "" : "oculto"}">
+      <div class="campo">
+        <label>Saldo actual que debes</label>
+        <input type="number" id="deuda-saldo-tarjeta" min="0" value="${deuda && deuda.tipo === "tarjeta_credito" ? deuda.saldo_tarjeta : 0}" placeholder="0">
+      </div>
+    </div>
+
     <div class="campo">
       <label>Pago mensual planeado</label>
       <input type="number" id="deuda-pago-mensual" min="0" value="${deuda ? deuda.pago_mensual_planeado : ""}" placeholder="0">
-    </div>
-    <div class="campo">
-      <label>Pagado hasta ahora</label>
-      <input type="number" id="deuda-pagado" min="0" value="${deuda ? deuda.pagado_acumulado : 0}" placeholder="0">
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -347,15 +482,41 @@ function abrirModalDeuda(id) {
     </div>
   `);
 
+  document.getElementById("deuda-tipo-normal").addEventListener("click", () => {
+    document.getElementById("deuda-tipo").value = "normal";
+    document.getElementById("deuda-tipo-normal").classList.add("activo-ingreso");
+    document.getElementById("deuda-tipo-tarjeta").classList.remove("activo-ingreso");
+    document.getElementById("campos-deuda-normal").classList.remove("oculto");
+    document.getElementById("campos-deuda-tarjeta").classList.add("oculto");
+  });
+  document.getElementById("deuda-tipo-tarjeta").addEventListener("click", () => {
+    document.getElementById("deuda-tipo").value = "tarjeta_credito";
+    document.getElementById("deuda-tipo-tarjeta").classList.add("activo-ingreso");
+    document.getElementById("deuda-tipo-normal").classList.remove("activo-ingreso");
+    document.getElementById("campos-deuda-tarjeta").classList.remove("oculto");
+    document.getElementById("campos-deuda-normal").classList.add("oculto");
+  });
+
   document.getElementById("btn-guardar-deuda").addEventListener("click", async () => {
-    const payload = {
-      nombre: document.getElementById("deuda-nombre").value.trim(),
-      monto_total: parseFloat(document.getElementById("deuda-monto-total").value),
-      pago_mensual_planeado: parseFloat(document.getElementById("deuda-pago-mensual").value),
-      pagado_acumulado: parseFloat(document.getElementById("deuda-pagado").value) || 0,
-    };
-    if (!payload.nombre || !payload.monto_total || !payload.pago_mensual_planeado) {
-      return alert("Completa nombre, monto total y pago mensual");
+    const tipo = document.getElementById("deuda-tipo").value;
+    const nombre = document.getElementById("deuda-nombre").value.trim();
+    const pagoMensual = parseFloat(document.getElementById("deuda-pago-mensual").value);
+
+    if (!nombre || !pagoMensual) return alert("Completa nombre y pago mensual");
+
+    let payload = { nombre, tipo, pago_mensual_planeado: pagoMensual };
+
+    if (tipo === "tarjeta_credito") {
+      payload.saldo_tarjeta = parseFloat(document.getElementById("deuda-saldo-tarjeta").value) || 0;
+      // Para tarjetas no usamos monto_total/pagado_acumulado, los dejamos en 0
+      payload.monto_total = 0;
+      payload.pagado_acumulado = 0;
+    } else {
+      const montoTotal = parseFloat(document.getElementById("deuda-monto-total").value);
+      if (!montoTotal) return alert("Completa el monto total");
+      payload.monto_total = montoTotal;
+      payload.pagado_acumulado = parseFloat(document.getElementById("deuda-pagado").value) || 0;
+      payload.saldo_tarjeta = 0;
     }
 
     let error;
@@ -381,9 +542,12 @@ async function eliminarDeuda(id) {
 
 function registrarPagoDeuda(id) {
   const deuda = deudasCache.find((d) => d.id === id);
+  const esTarjeta = deuda.tipo === "tarjeta_credito";
+  const saldoActual = esTarjeta ? deuda.saldo_tarjeta : (deuda.monto_total - deuda.pagado_acumulado);
+
   abrirModal(`
     <h3>Registrar pago — ${escapeHtml(deuda.nombre)}</h3>
-    <p class="fila-detalle" style="margin-bottom:14px;">Saldo restante: ${formatoMoneda(deuda.monto_total - deuda.pagado_acumulado)}</p>
+    <p class="fila-detalle" style="margin-bottom:14px;">Saldo actual: ${formatoMoneda(saldoActual)}</p>
     <div class="campo">
       <label>Monto a abonar</label>
       <input type="number" id="pago-monto" min="0" value="${deuda.pago_mensual_planeado}">
@@ -398,22 +562,29 @@ function registrarPagoDeuda(id) {
     const monto = parseFloat(document.getElementById("pago-monto").value);
     if (!monto || monto <= 0) return alert("Ingresa un monto válido");
 
-    const nuevoPagado = deuda.pagado_acumulado + monto;
-
-    const { error: errorDeuda } = await db
-      .from("deudas")
-      .update({ pagado_acumulado: nuevoPagado })
-      .eq("id", deuda.id);
+    // Actualiza el saldo de la deuda (resta, según su tipo)
+    const { error: errorDeuda } = esTarjeta
+      ? await db.from("deudas").update({ saldo_tarjeta: Math.max(deuda.saldo_tarjeta - monto, 0) }).eq("id", deuda.id)
+      : await db.from("deudas").update({ pagado_acumulado: deuda.pagado_acumulado + monto }).eq("id", deuda.id);
     if (errorDeuda) return alert("Error: " + errorDeuda.message);
 
-    // También se registra como movimiento (gasto) en el historial
-    await db.from("movimientos").insert({
+    // Se registra como movimiento (gasto) en el historial
+    const { data: mov, error: errorMov } = await db.from("movimientos").insert({
       tipo: "gasto",
       monto,
       categoria: "Pago de deuda",
       fecha: fechaHoy(),
       nota: `Pago: ${deuda.nombre}`,
-    });
+      metodo_pago: "efectivo",
+    }).select().single();
+    if (errorMov) return alert("Error: " + errorMov.message);
+
+    // Marca esta deuda como "pagada este mes" (para el cálculo de Comprometido este mes)
+    await db.from("deudas_pagos").upsert({
+      deuda_id: deuda.id,
+      mes: mesActual(),
+      movimiento_id: mov.id,
+    }, { onConflict: "deuda_id,mes" });
 
     cerrarModal();
     await Promise.all([cargarDeudas(), cargarMovimientos()]);
@@ -596,16 +767,21 @@ function renderizarDashboard() {
     .filter((m) => m.tipo === "gasto")
     .reduce((acc, m) => acc + m.monto, 0);
 
-  // Comprometido este mes: gastos fijos pendientes (no pagados)
+  // Comprometido este mes: gastos fijos pendientes + pagos de deuda pendientes (no marcados este mes)
   const gastosFijosPendientes = gastosFijosCache
     .filter((g) => !estaPagadoEsteMes(g.id))
     .reduce((acc, g) => acc + g.monto, 0);
 
-  const comprometido = gastosFijosPendientes;
+  const deudasPendientesEsteMes = deudasCache
+    .filter((d) => !estaDeudaPagadaEsteMes(d.id))
+    .reduce((acc, d) => acc + d.pago_mensual_planeado, 0);
+
+  const comprometido = gastosFijosPendientes + deudasPendientesEsteMes;
   const dineroLibre = balance - comprometido;
 
-  // Deuda total pendiente (todas las deudas activas)
+  // Deuda total pendiente: deudas normales (monto_total - pagado) + saldo de tarjetas de crédito
   const deudaTotal = deudasCache.reduce((acc, d) => {
+    if (d.tipo === "tarjeta_credito") return acc + d.saldo_tarjeta;
     return acc + Math.max(d.monto_total - d.pagado_acumulado, 0);
   }, 0);
 
