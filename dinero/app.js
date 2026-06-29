@@ -792,6 +792,8 @@ function renderizarDashboard() {
   document.getElementById("d-ingresos").textContent = formatoMoneda(ingresosMes);
   document.getElementById("d-gastos").textContent = formatoMoneda(gastosMes);
 
+  renderizarGraficaCategorias();
+
   // Lista de gastos fijos del mes (en el dashboard)
   const contenedorGF = document.getElementById("d-lista-gastos-fijos");
   if (gastosFijosCache.length === 0) {
@@ -831,6 +833,108 @@ function renderizarDashboard() {
       </div>
     `).join("");
   }
+}
+
+// ============================================
+// GRÁFICA: gastos por categoría (pastel, navegable por mes)
+// ============================================
+let mesGraficaCategorias = new Date(); // mes que se está viendo en la gráfica
+
+const PALETA_CATEGORIAS = [
+  "#5b8def", "#f87171", "#fbbf24", "#4ade80", "#a78bfa",
+  "#f472b6", "#38bdf8", "#fb923c", "#34d399", "#c084fc",
+];
+
+document.getElementById("dg-mes-anterior").addEventListener("click", () => {
+  mesGraficaCategorias.setMonth(mesGraficaCategorias.getMonth() - 1);
+  renderizarGraficaCategorias();
+});
+document.getElementById("dg-mes-siguiente").addEventListener("click", () => {
+  mesGraficaCategorias.setMonth(mesGraficaCategorias.getMonth() + 1);
+  renderizarGraficaCategorias();
+});
+
+function clavemMesGrafica() {
+  const a = mesGraficaCategorias.getFullYear();
+  const m = String(mesGraficaCategorias.getMonth() + 1).padStart(2, "0");
+  return `${a}-${m}`;
+}
+
+function renderizarGraficaCategorias() {
+  document.getElementById("dg-mes-titulo").textContent =
+    mesGraficaCategorias.toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+
+  const claveMes = clavemMesGrafica();
+  const gastosDelMes = movimientosCache.filter(
+    (m) => m.tipo === "gasto" && m.fecha.slice(0, 7) === claveMes
+  );
+
+  const contenedor = document.getElementById("d-grafica-categorias");
+
+  if (gastosDelMes.length === 0) {
+    contenedor.innerHTML = '<p class="vacio">No hay gastos registrados este mes</p>';
+    return;
+  }
+
+  // Agrupar por categoría
+  const totalesPorCategoria = {};
+  gastosDelMes.forEach((m) => {
+    totalesPorCategoria[m.categoria] = (totalesPorCategoria[m.categoria] || 0) + m.monto;
+  });
+
+  const categoriasOrdenadas = Object.entries(totalesPorCategoria)
+    .sort((a, b) => b[1] - a[1]); // mayor a menor
+
+  const totalGastos = categoriasOrdenadas.reduce((acc, [, monto]) => acc + monto, 0);
+
+  contenedor.innerHTML = `
+    <div class="grafica-categorias-wrap">
+      <div class="grafica-pastel">${generarSvgPastel(categoriasOrdenadas, totalGastos)}</div>
+      <div class="grafica-leyenda">
+        ${categoriasOrdenadas.map(([categoria, monto], i) => `
+          <div class="leyenda-item">
+            <span class="leyenda-color" style="background:${PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length]}"></span>
+            <span class="leyenda-nombre">${escapeHtml(categoria)}</span>
+            <span class="leyenda-monto">${formatoMoneda(monto)}</span>
+            <span class="leyenda-porcentaje">${((monto / totalGastos) * 100).toFixed(0)}%</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// Genera un SVG de gráfica de pastel a partir de pares [categoria, monto]
+function generarSvgPastel(categoriasOrdenadas, total) {
+  const radio = 70;
+  const centro = 75;
+  let anguloInicio = -90; // empieza arriba (12 en punto)
+
+  const segmentos = categoriasOrdenadas.map(([, monto], i) => {
+    const porcentaje = monto / total;
+    const anguloBarrido = porcentaje * 360;
+    const anguloFin = anguloInicio + anguloBarrido;
+
+    const x1 = centro + radio * Math.cos((Math.PI / 180) * anguloInicio);
+    const y1 = centro + radio * Math.sin((Math.PI / 180) * anguloInicio);
+    const x2 = centro + radio * Math.cos((Math.PI / 180) * anguloFin);
+    const y2 = centro + radio * Math.sin((Math.PI / 180) * anguloFin);
+    const granArco = anguloBarrido > 180 ? 1 : 0;
+
+    // Si es 100% de una sola categoría, dibujamos un círculo completo (un path no puede cerrar 360°)
+    const path = porcentaje >= 0.999
+      ? `M ${centro - radio} ${centro} A ${radio} ${radio} 0 1 1 ${centro + radio} ${centro} A ${radio} ${radio} 0 1 1 ${centro - radio} ${centro}`
+      : `M ${centro} ${centro} L ${x1} ${y1} A ${radio} ${radio} 0 ${granArco} 1 ${x2} ${y2} Z`;
+
+    anguloInicio = anguloFin;
+    return `<path d="${path}" fill="${PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length]}" />`;
+  });
+
+  return `
+    <svg width="150" height="150" viewBox="0 0 150 150">
+      ${segmentos.join("")}
+    </svg>
+  `;
 }
 
 // ============================================

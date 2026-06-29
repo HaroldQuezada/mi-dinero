@@ -393,6 +393,72 @@
 }
 
 /* ============================================
+   NAVEGACIÓN DE MES (gráfica de categorías)
+============================================ */
+.nav-mes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--color-texto-suave);
+}
+
+/* ============================================
+   GRÁFICA DE PASTEL (gastos por categoría)
+============================================ */
+.grafica-categorias-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.grafica-pastel svg {
+  display: block;
+}
+
+.grafica-leyenda {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.leyenda-color {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.leyenda-nombre {
+  flex: 1;
+  color: var(--color-texto);
+}
+
+.leyenda-monto {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.leyenda-porcentaje {
+  color: var(--color-texto-suave);
+  font-size: 12px;
+  width: 38px;
+  text-align: right;
+}
+
+/* ============================================
    MODAL
 ============================================ */
 .modal-overlay {
