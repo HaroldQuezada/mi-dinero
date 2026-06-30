@@ -860,6 +860,8 @@ function clavemMesGrafica() {
   return `${a}-${m}`;
 }
 
+let categoriaExpandidaGrafica = null; // qué categoría está expandida actualmente
+
 function renderizarGraficaCategorias() {
   document.getElementById("dg-mes-titulo").textContent =
     mesGraficaCategorias.toLocaleDateString("es-CO", { month: "long", year: "numeric" });
@@ -873,6 +875,7 @@ function renderizarGraficaCategorias() {
 
   if (gastosDelMes.length === 0) {
     contenedor.innerHTML = '<p class="vacio">No hay gastos registrados este mes</p>';
+    categoriaExpandidaGrafica = null;
     return;
   }
 
@@ -887,12 +890,18 @@ function renderizarGraficaCategorias() {
 
   const totalGastos = categoriasOrdenadas.reduce((acc, [, monto]) => acc + monto, 0);
 
+  // Si la categoría expandida ya no existe este mes (cambiaste de mes), se cierra
+  if (categoriaExpandidaGrafica && !totalesPorCategoria[categoriaExpandidaGrafica]) {
+    categoriaExpandidaGrafica = null;
+  }
+
   contenedor.innerHTML = `
     <div class="grafica-categorias-wrap">
       <div class="grafica-pastel">${generarSvgPastel(categoriasOrdenadas, totalGastos)}</div>
       <div class="grafica-leyenda">
         ${categoriasOrdenadas.map(([categoria, monto], i) => `
-          <div class="leyenda-item">
+          <div class="leyenda-item ${categoria === categoriaExpandidaGrafica ? "leyenda-activa" : ""}"
+            onclick="toggleCategoriaExpandida('${escapeAtributo(categoria)}')">
             <span class="leyenda-color" style="background:${PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length]}"></span>
             <span class="leyenda-nombre">${escapeHtml(categoria)}</span>
             <span class="leyenda-monto">${formatoMoneda(monto)}</span>
@@ -900,6 +909,46 @@ function renderizarGraficaCategorias() {
           </div>
         `).join("")}
       </div>
+    </div>
+    <div id="detalle-categoria-expandida"></div>
+  `;
+
+  if (categoriaExpandidaGrafica) {
+    renderizarDetalleCategoria(categoriaExpandidaGrafica, gastosDelMes);
+  }
+}
+
+function escapeAtributo(texto) {
+  return texto.replace(/'/g, "\\'");
+}
+
+function toggleCategoriaExpandida(categoria) {
+  categoriaExpandidaGrafica = categoriaExpandidaGrafica === categoria ? null : categoria;
+  renderizarGraficaCategorias();
+}
+
+function renderizarDetalleCategoria(categoria, gastosDelMes) {
+  const gastosDeEstaCategoria = gastosDelMes
+    .filter((m) => m.categoria === categoria)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  const totalCategoria = gastosDeEstaCategoria.reduce((acc, m) => acc + m.monto, 0);
+
+  document.getElementById("detalle-categoria-expandida").innerHTML = `
+    <div class="detalle-categoria">
+      <div class="detalle-categoria-header">
+        <span>${escapeHtml(categoria)} · ${gastosDeEstaCategoria.length} ${gastosDeEstaCategoria.length === 1 ? "gasto" : "gastos"}</span>
+        <span class="leyenda-monto">${formatoMoneda(totalCategoria)}</span>
+      </div>
+      ${gastosDeEstaCategoria.map((m) => `
+        <div class="fila">
+          <div class="fila-info">
+            <span class="fila-titulo">${formatoFecha(m.fecha)}</span>
+            <span class="fila-detalle">${descripcionMetodoPago(m.metodo_pago)}${m.nota ? " · " + escapeHtml(m.nota) : ""}</span>
+          </div>
+          <span class="fila-monto negativo">-${formatoMoneda(m.monto)}</span>
+        </div>
+      `).join("")}
     </div>
   `;
 }
@@ -910,7 +959,7 @@ function generarSvgPastel(categoriasOrdenadas, total) {
   const centro = 75;
   let anguloInicio = -90; // empieza arriba (12 en punto)
 
-  const segmentos = categoriasOrdenadas.map(([, monto], i) => {
+  const segmentos = categoriasOrdenadas.map(([categoria, monto], i) => {
     const porcentaje = monto / total;
     const anguloBarrido = porcentaje * 360;
     const anguloFin = anguloInicio + anguloBarrido;
@@ -926,8 +975,19 @@ function generarSvgPastel(categoriasOrdenadas, total) {
       ? `M ${centro - radio} ${centro} A ${radio} ${radio} 0 1 1 ${centro + radio} ${centro} A ${radio} ${radio} 0 1 1 ${centro - radio} ${centro}`
       : `M ${centro} ${centro} L ${x1} ${y1} A ${radio} ${radio} 0 ${granArco} 1 ${x2} ${y2} Z`;
 
+    // Etiqueta de porcentaje sobre el segmento, solo si es lo bastante grande para que se vea legible
+    let etiqueta = "";
+    if (porcentaje >= 0.08) {
+      const anguloMedio = anguloInicio + anguloBarrido / 2;
+      const radioEtiqueta = radio * 0.65;
+      const xEtiqueta = centro + radioEtiqueta * Math.cos((Math.PI / 180) * anguloMedio);
+      const yEtiqueta = centro + radioEtiqueta * Math.sin((Math.PI / 180) * anguloMedio);
+      etiqueta = `<text x="${xEtiqueta.toFixed(1)}" y="${yEtiqueta.toFixed(1)}" class="etiqueta-porcentaje-svg" text-anchor="middle" dominant-baseline="middle">${(porcentaje * 100).toFixed(0)}%</text>`;
+    }
+
     anguloInicio = anguloFin;
-    return `<path d="${path}" fill="${PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length]}" />`;
+    const colorRelleno = PALETA_CATEGORIAS[i % PALETA_CATEGORIAS.length];
+    return `<path d="${path}" fill="${colorRelleno}" class="segmento-pastel" onclick="toggleCategoriaExpandida('${escapeAtributo(categoria)}')" />${etiqueta}`;
   });
 
   return `
