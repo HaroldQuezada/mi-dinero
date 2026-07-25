@@ -604,6 +604,23 @@
 .badge-ok { background: rgba(74, 222, 128, 0.15); color: var(--color-positivo); }
 .badge-pendiente { background: rgba(251, 191, 36, 0.15); color: var(--color-advertencia); }
 
+.btn-ajustar-saldo {
+  font-size: 11px;
+  color: var(--color-texto-suave);
+  padding: 3px 8px;
+  border: 1px solid var(--color-borde);
+  border-radius: 6px;
+  background: var(--color-superficie-alta);
+  margin-top: 4px;
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.btn-ajustar-saldo:hover {
+  color: var(--color-primario);
+  border-color: var(--color-primario);
+}
+
 /* ============================================
    RESPONSIVE
 ============================================ */

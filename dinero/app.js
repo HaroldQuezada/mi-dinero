@@ -998,6 +998,80 @@ function generarSvgPastel(categoriasOrdenadas, total) {
 }
 
 // ============================================
+// AJUSTE DE SALDO REAL
+// Permite corregir el balance cuando uno dejó
+// de usar la app y quiere volver a cuadrar.
+// Crea un movimiento especial de ajuste para
+// mantener trazabilidad sin borrar el historial.
+// ============================================
+function abrirModalAjusteSaldo() {
+  const balanceActual = movimientosCache.reduce((acc, m) => {
+    return acc + (m.tipo === "ingreso" ? m.monto : -m.monto);
+  }, 0);
+
+  abrirModal(`
+    <h3>Ajustar saldo real</h3>
+    <p class="fila-detalle" style="margin-bottom:16px;">
+      Balance calculado actualmente: <strong>${formatoMoneda(balanceActual)}</strong><br>
+      Si dejaste de registrar movimientos por un tiempo, escribe cuánto tienes
+      realmente en este momento y se creará un ajuste automático.
+    </p>
+    <div class="campo">
+      <label>¿Cuánto tienes realmente ahora?</label>
+      <input type="number" id="ajuste-saldo-real" min="0" step="1"
+        placeholder="${balanceActual > 0 ? balanceActual.toFixed(0) : "0"}">
+    </div>
+    <div id="ajuste-preview" style="margin-top:10px; font-size:13px; color:var(--color-texto-suave);"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-confirmar-ajuste">Aplicar ajuste</button>
+    </div>
+  `);
+
+  const inputSaldo = document.getElementById("ajuste-saldo-real");
+  const preview = document.getElementById("ajuste-preview");
+
+  inputSaldo.addEventListener("input", () => {
+    const saldoReal = parseFloat(inputSaldo.value);
+    if (isNaN(saldoReal)) { preview.textContent = ""; return; }
+    const diferencia = saldoReal - balanceActual;
+    if (Math.abs(diferencia) < 1) {
+      preview.textContent = "✓ El saldo ya está correcto, no se necesita ajuste.";
+      return;
+    }
+    if (diferencia > 0) {
+      preview.innerHTML = `Se creará un <span style="color:var(--color-positivo)">ingreso de ajuste</span> por ${formatoMoneda(diferencia)}.`;
+    } else {
+      preview.innerHTML = `Se creará un <span style="color:var(--color-negativo)">gasto de ajuste</span> por ${formatoMoneda(Math.abs(diferencia))}.`;
+    }
+  });
+
+  document.getElementById("btn-confirmar-ajuste").addEventListener("click", async () => {
+    const saldoReal = parseFloat(inputSaldo.value);
+    if (isNaN(saldoReal) || saldoReal < 0) return alert("Ingresa un monto válido");
+    const diferencia = saldoReal - balanceActual;
+    if (Math.abs(diferencia) < 1) { cerrarModal(); return; }
+
+    const payload = {
+      tipo: diferencia > 0 ? "ingreso" : "gasto",
+      monto: Math.abs(diferencia),
+      categoria: "Ajuste de saldo",
+      fecha: fechaHoy(),
+      nota: `Ajuste manual: saldo real ${formatoMoneda(saldoReal)}`,
+      metodo_pago: "efectivo",
+    };
+
+    const { error } = await db.from("movimientos").insert(payload);
+    if (error) return alert("Error: " + error.message);
+
+    cerrarModal();
+    await cargarMovimientos();
+    renderizarDashboard();
+    alert(`Ajuste aplicado. Nuevo balance: ${formatoMoneda(saldoReal)}`);
+  });
+}
+
+// ============================================
 // MODAL GENÉRICO
 // ============================================
 function abrirModal(html) {
