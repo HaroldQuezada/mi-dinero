@@ -629,3 +629,129 @@
   .deuda-datos { grid-template-columns: repeat(2, 1fr); }
   .tarjetas { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================
+   PRESUPUESTO — categorías grandes, metas, alertas
+============================================ */
+
+.bloque-categoria-grande {
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.cat-grande-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.cat-grande-nombre {
+  font-weight: 700;
+  font-size: 15px;
+  display: block;
+}
+
+.cat-grande-pct {
+  font-size: 12px;
+  color: var(--color-texto-suave);
+}
+
+.cat-grande-cifras {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.cat-grande-cifras div span {
+  display: block;
+  font-size: 11px;
+  color: var(--color-texto-suave);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.barra-ok { background: var(--color-positivo); }
+.barra-advertencia { background: var(--color-advertencia); }
+.barra-excedido { background: var(--color-negativo); }
+
+.alerta-cat { font-size: 12px; margin-top: 4px; }
+.barra-advertencia-texto { color: var(--color-advertencia); }
+.barra-excedido-texto { color: var(--color-negativo); }
+
+.alerta-advertencia {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid var(--color-advertencia);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--color-advertencia);
+}
+
+.subcats-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.subcat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(91, 141, 239, 0.12);
+  border: 1px solid var(--color-primario);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--color-texto);
+}
+
+.subcat-chip button {
+  color: var(--color-texto-suave);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.subcat-chip button:hover { color: var(--color-negativo); }
+
+/* Metas de ahorro */
+.bloque-meta-ahorro {
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.meta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.meta-nombre { font-weight: 700; font-size: 15px; }
+
+.meta-cifras {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.meta-cifras div span {
+  display: block;
+  font-size: 11px;
+  color: var(--color-texto-suave);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}

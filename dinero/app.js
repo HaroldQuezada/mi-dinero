@@ -6,8 +6,12 @@
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let usuarioActual = null;
-let categoriasIngreso = ["Salario", "Venta", "Regalo", "Otro ingreso"];
-let categoriasGasto = ["Comida", "Transporte", "Salud", "Ocio", "Hogar", "Otro gasto"];
+
+// Caché de datos — se cargan al iniciar sesión
+let configuracionCache = { ingreso_mensual: 0 };
+let categoriasGrandesCache = [];   // Obligaciones, Ocio, Ahorro
+let subcategoriasCache = [];       // Arriendo, Luz, Netflix, etc.
+let metasAhorroCache = [];
 
 // ============================================
 // UTILIDADES
@@ -101,11 +105,62 @@ document.querySelectorAll(".tab").forEach((tab) => {
 // ============================================
 async function cargarTodo() {
   await Promise.all([
+    cargarConfiguracion(),
+    cargarCategoriasGrandes(),
     cargarMovimientos(),
     cargarDeudas(),
     cargarGastosFijos(),
+    cargarMetasAhorro(),
   ]);
+  await cargarSubcategorias();
   renderizarDashboard();
+  renderizarPresupuesto();
+}
+
+// ============================================
+// CONFIGURACIÓN (ingreso mensual)
+// ============================================
+async function cargarConfiguracion() {
+  const { data, error } = await db.from("configuracion").select("*").maybeSingle();
+  if (error) { console.error(error); return; }
+  configuracionCache = data || { ingreso_mensual: 0 };
+}
+
+async function guardarConfiguracion(ingresoMensual) {
+  const { data: existente } = await db.from("configuracion").select("id").maybeSingle();
+  if (existente) {
+    await db.from("configuracion").update({ ingreso_mensual: ingresoMensual }).eq("id", existente.id);
+  } else {
+    await db.from("configuracion").insert({ ingreso_mensual: ingresoMensual });
+  }
+}
+
+// ============================================
+// CATEGORÍAS GRANDES (Obligaciones, Ocio, Ahorro)
+// ============================================
+async function cargarCategoriasGrandes() {
+  const { data, error } = await db
+    .from("categorias_grandes").select("*").order("orden", { ascending: true });
+  if (error) { console.error(error); return; }
+  categoriasGrandesCache = data || [];
+}
+
+async function cargarSubcategorias() {
+  if (categoriasGrandesCache.length === 0) { subcategoriasCache = []; return; }
+  const { data, error } = await db
+    .from("subcategorias").select("*").order("nombre", { ascending: true });
+  if (error) { console.error(error); return; }
+  subcategoriasCache = data || [];
+}
+
+// ============================================
+// METAS DE AHORRO
+// ============================================
+async function cargarMetasAhorro() {
+  const { data, error } = await db
+    .from("metas_ahorro").select("*").eq("activa", true).order("created_at", { ascending: true });
+  if (error) { console.error(error); return; }
+  metasAhorroCache = data || [];
 }
 
 // ============================================
@@ -209,8 +264,7 @@ function abrirModalMovimiento(id) {
     </div>
     <div class="campo">
       <label>Categoría</label>
-      <input type="text" id="mov-categoria" list="lista-categorias-sugeridas" placeholder="Escribe o elige una">
-      <datalist id="lista-categorias-sugeridas"></datalist>
+      <select id="mov-categoria"></select>
     </div>
     <div class="campo" id="campo-metodo-pago">
       <label>Método de pago</label>
@@ -231,16 +285,34 @@ function abrirModalMovimiento(id) {
   `);
 
   function actualizarCategorias(tipo) {
-    const datalist = document.getElementById("lista-categorias-sugeridas");
-    const sugeridas = tipo === "ingreso" ? categoriasIngreso : categoriasGasto;
-    const usadas = [...new Set(
-      movimientosCache.filter((m) => m.tipo === tipo).map((m) => m.categoria)
-    )];
-    const todas = [...new Set([...sugeridas, ...usadas])];
-    datalist.innerHTML = todas.map((c) => `<option value="${escapeHtml(c)}"></option>`).join("");
+    const select = document.getElementById("mov-categoria");
+    if (tipo === "ingreso") {
+      // Para ingresos: lista plana con opciones simples
+      const opcionesIngreso = ["Salario", "Venta", "Regalo", "Ajuste de saldo", "Otro ingreso"];
+      select.innerHTML = opcionesIngreso.map((c) =>
+        `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`
+      ).join("");
+    } else {
+      // Para gastos: optgroups por categoría grande + subcategorías
+      if (categoriasGrandesCache.length === 0) {
+        select.innerHTML = `<option value="Sin categoría">Sin categoría (crea categorías en Presupuesto)</option>`;
+      } else {
+        select.innerHTML = categoriasGrandesCache.map((cg) => {
+          const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
+          const opciones = subs.length > 0
+            ? subs.map((s) => `<option value="${escapeHtml(s.nombre)}">${escapeHtml(s.nombre)}</option>`).join("")
+            : `<option value="${escapeHtml(cg.nombre)}">${escapeHtml(cg.nombre)} (general)</option>`;
+          return `<optgroup label="${escapeHtml(cg.nombre)}">${opciones}</optgroup>`;
+        }).join("");
+      }
+    }
+    if (movimiento && movimiento.categoria) {
+      // Intenta restaurar la categoría del movimiento que se está editando
+      const opts = [...select.options].map((o) => o.value);
+      if (opts.includes(movimiento.categoria)) select.value = movimiento.categoria;
+    }
   }
   actualizarCategorias(tipoInicial);
-  document.getElementById("mov-categoria").value = movimiento ? movimiento.categoria : "";
 
   function actualizarMetodosPago() {
     const select = document.getElementById("mov-metodo-pago");
@@ -793,6 +865,7 @@ function renderizarDashboard() {
   document.getElementById("d-gastos").textContent = formatoMoneda(gastosMes);
 
   renderizarGraficaCategorias();
+  renderizarPresupuesto();
 
   // Lista de gastos fijos del mes (en el dashboard)
   const contenedorGF = document.getElementById("d-lista-gastos-fijos");
@@ -1069,6 +1142,411 @@ function abrirModalAjusteSaldo() {
     renderizarDashboard();
     alert(`Ajuste aplicado. Nuevo balance: ${formatoMoneda(saldoReal)}`);
   });
+}
+
+// ============================================
+// PRESUPUESTO — renderizado completo
+// ============================================
+function renderizarPresupuesto() {
+  const ingreso = configuracionCache.ingreso_mensual || 0;
+  const mes = mesActual();
+
+  // Calcular gastos del mes actual por subcategoría
+  const gastosDelMes = movimientosCache.filter(
+    (m) => m.tipo === "gasto" && m.fecha.slice(0, 7) === mes
+  );
+  const gastosPorCategoria = {};
+  gastosDelMes.forEach((m) => {
+    gastosPorCategoria[m.categoria] = (gastosPorCategoria[m.categoria] || 0) + m.monto;
+  });
+
+  // Comprometido (mismo cálculo que el dashboard)
+  const gastosFijosPendientes = gastosFijosCache
+    .filter((g) => !estaPagadoEsteMes(g.id))
+    .reduce((acc, g) => acc + g.monto, 0);
+  const deudasPendientes = deudasCache
+    .filter((d) => !estaDeudaPagadaEsteMes(d.id))
+    .reduce((acc, d) => acc + d.pago_mensual_planeado, 0);
+  const comprometido = gastosFijosPendientes + deudasPendientes;
+  const disponible = ingreso - comprometido;
+
+  // Tarjetas superiores
+  document.getElementById("p-ingreso-mensual").textContent = formatoMoneda(ingreso);
+  document.getElementById("p-comprometido").textContent = formatoMoneda(comprometido);
+  document.getElementById("p-disponible").textContent = formatoMoneda(disponible);
+
+  // También actualizar el mini-bloque del dashboard
+  const dIngreso = document.getElementById("d-ingreso-mensual");
+  if (dIngreso) dIngreso.textContent = formatoMoneda(ingreso);
+
+  // ---- CATEGORÍAS GRANDES con sus subcategorías ----
+  const contenedorCats = document.getElementById("p-categorias-grandes");
+  if (categoriasGrandesCache.length === 0) {
+    contenedorCats.innerHTML = `
+      <p class="vacio">No tienes categorías creadas aún.</p>
+      <button class="btn-secundario" style="margin-top:8px;" onclick="abrirModalCategoriaGrande()">+ Crear primera categoría</button>
+    `;
+  } else {
+    const totalPorcentajes = categoriasGrandesCache.reduce((acc, cg) => acc + cg.porcentaje, 0);
+    const alertaPorcentaje = Math.abs(totalPorcentajes - 100) > 0.5
+      ? `<p class="alerta-advertencia" style="margin-bottom:12px;">⚠ Los porcentajes suman ${totalPorcentajes}%. Deben sumar 100%.</p>`
+      : "";
+
+    contenedorCats.innerHTML = alertaPorcentaje + categoriasGrandesCache.map((cg) => {
+      const presupuesto = ingreso * (cg.porcentaje / 100);
+      const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
+
+      // Gastos de este mes que pertenecen a subcategorías de esta categoría grande
+      const nombresSubcats = new Set(subs.map((s) => s.nombre));
+      nombresSubcats.add(cg.nombre); // también el nombre de la categoría grande en sí
+      const gastado = Object.entries(gastosPorCategoria)
+        .filter(([cat]) => nombresSubcats.has(cat))
+        .reduce((acc, [, monto]) => acc + monto, 0);
+
+      const disponibleCat = presupuesto - gastado;
+      const porcentajeUsado = presupuesto > 0 ? Math.min((gastado / presupuesto) * 100, 100) : 0;
+
+      // Alerta visual
+      let estadoClase = "barra-ok";
+      let estadoLabel = "";
+      if (presupuesto > 0) {
+        if (gastado > presupuesto) { estadoClase = "barra-excedido"; estadoLabel = "⚠ Excedido"; }
+        else if (gastado / presupuesto >= 0.8) { estadoClase = "barra-advertencia"; estadoLabel = "⚠ Cerca del límite"; }
+      }
+
+      return `
+        <div class="bloque-categoria-grande">
+          <div class="cat-grande-header">
+            <div>
+              <span class="cat-grande-nombre">${escapeHtml(cg.nombre)}</span>
+              <span class="cat-grande-pct">${cg.porcentaje}% del ingreso</span>
+            </div>
+            <div class="fila-acciones">
+              <button onclick="abrirModalCategoriaGrande('${cg.id}')">Editar</button>
+              <button onclick="eliminarCategoriaGrande('${cg.id}')">Eliminar</button>
+            </div>
+          </div>
+
+          <div class="cat-grande-cifras">
+            <div><span>Presupuesto</span>${formatoMoneda(presupuesto)}</div>
+            <div><span>Gastado</span>${formatoMoneda(gastado)}</div>
+            <div><span>Disponible</span><strong class="${disponibleCat >= 0 ? "positivo" : "negativo"}">${formatoMoneda(disponibleCat)}</strong></div>
+          </div>
+
+          <div class="barra-progreso" title="${porcentajeUsado.toFixed(0)}% usado">
+            <div class="barra-progreso-fill ${estadoClase}" style="width:${porcentajeUsado}%"></div>
+          </div>
+          ${estadoLabel ? `<p class="alerta-cat ${estadoClase}-texto">${estadoLabel}</p>` : ""}
+
+          <div class="subcats-lista">
+            ${subs.map((s) => `
+              <span class="subcat-chip">
+                ${escapeHtml(s.nombre)}
+                <button onclick="eliminarSubcategoria('${s.id}')" title="Eliminar">×</button>
+              </span>
+            `).join("")}
+            <button class="btn-link" style="font-size:12px;width:auto;display:inline;"
+              onclick="abrirModalSubcategoria('${cg.id}')">+ Subcategoría</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  // ---- DISTRIBUCIÓN EN EL DASHBOARD ----
+  const contenedorDash = document.getElementById("d-distribucion-categorias");
+  if (contenedorDash) {
+    if (categoriasGrandesCache.length === 0) {
+      contenedorDash.innerHTML = '<p class="vacio">Configura tus categorías en la pestaña Presupuesto</p>';
+    } else {
+      contenedorDash.innerHTML = categoriasGrandesCache.map((cg) => {
+        const presupuesto = ingreso * (cg.porcentaje / 100);
+        const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
+        const nombresSubcats = new Set(subs.map((s) => s.nombre));
+        nombresSubcats.add(cg.nombre);
+        const gastado = Object.entries(gastosPorCategoria)
+          .filter(([cat]) => nombresSubcats.has(cat))
+          .reduce((acc, [, monto]) => acc + monto, 0);
+        const pct = presupuesto > 0 ? Math.min((gastado / presupuesto) * 100, 100) : 0;
+        let estadoClase = gastado > presupuesto ? "barra-excedido" : pct >= 80 ? "barra-advertencia" : "barra-ok";
+        return `
+          <div class="fila" style="flex-direction:column;align-items:stretch;gap:4px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;">
+              <span>${escapeHtml(cg.nombre)} <span style="color:var(--color-texto-suave)">(${cg.porcentaje}%)</span></span>
+              <span>${formatoMoneda(gastado)} / ${formatoMoneda(presupuesto)}</span>
+            </div>
+            <div class="barra-progreso" style="height:6px;">
+              <div class="barra-progreso-fill ${estadoClase}" style="width:${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  // ---- METAS DE AHORRO ----
+  renderizarMetasAhorro();
+}
+
+function renderizarMetasAhorro() {
+  const ids = ["p-metas-ahorro", "d-metas-ahorro"];
+  ids.forEach((id) => {
+    const contenedor = document.getElementById(id);
+    if (!contenedor) return;
+    if (metasAhorroCache.length === 0) {
+      contenedor.innerHTML = '<p class="vacio">No tienes metas de ahorro creadas</p>';
+      return;
+    }
+    contenedor.innerHTML = metasAhorroCache.map((m) => {
+      const pct = m.valor_objetivo > 0
+        ? Math.min((m.valor_ahorrado / m.valor_objetivo) * 100, 100)
+        : 0;
+      const falta = Math.max(m.valor_objetivo - m.valor_ahorrado, 0);
+      const fechaStr = m.fecha_objetivo
+        ? ` · Meta: ${formatoFecha(m.fecha_objetivo)}`
+        : "";
+      return `
+        <div class="bloque-meta-ahorro">
+          <div class="meta-header">
+            <span class="meta-nombre">${escapeHtml(m.nombre)}</span>
+            <div class="fila-acciones">
+              <button onclick="abrirModalMeta('${m.id}')">Editar</button>
+              <button onclick="eliminarMeta('${m.id}')">Eliminar</button>
+            </div>
+          </div>
+          <div class="meta-cifras">
+            <div><span>Objetivo</span>${formatoMoneda(m.valor_objetivo)}</div>
+            <div><span>Ahorrado</span>${formatoMoneda(m.valor_ahorrado)}</div>
+            <div><span>Falta</span>${formatoMoneda(falta)}</div>
+          </div>
+          <div class="barra-progreso">
+            <div class="barra-progreso-fill barra-ok" style="width:${pct}%"></div>
+          </div>
+          <p style="font-size:11px;color:var(--color-texto-suave);margin-top:4px;">${pct.toFixed(0)}% completado${fechaStr}</p>
+        </div>
+      `;
+    }).join("");
+  });
+}
+
+// ============================================
+// MODALES DE PRESUPUESTO
+// ============================================
+
+// --- Modal: Configurar ingreso mensual y porcentajes ---
+function abrirModalConfiguracion() {
+  const ingreso = configuracionCache.ingreso_mensual || 0;
+  abrirModal(`
+    <h3>Configurar ingreso y distribución</h3>
+    <div class="campo">
+      <label>Ingreso mensual base</label>
+      <input type="number" id="cfg-ingreso" min="0" value="${ingreso}" placeholder="0">
+    </div>
+    <div style="margin-top:16px;">
+      <p style="font-size:13px;font-weight:600;margin-bottom:10px;">Porcentajes por categoría</p>
+      <div id="cfg-porcentajes">
+        ${categoriasGrandesCache.map((cg) => `
+          <div class="campo" style="margin-bottom:10px;">
+            <label>${escapeHtml(cg.nombre)}</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="number" class="cfg-pct-input" data-id="${cg.id}"
+                min="0" max="100" value="${cg.porcentaje}" style="width:80px;">
+              <span>%</span>
+              <span class="cfg-pct-monto" id="pct-monto-${cg.id}" style="color:var(--color-texto-suave);font-size:13px;"></span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+      <p id="cfg-suma-aviso" style="font-size:13px;margin-top:8px;"></p>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-config">Guardar</button>
+    </div>
+  `);
+
+  function actualizarPreview() {
+    const ing = parseFloat(document.getElementById("cfg-ingreso").value) || 0;
+    let suma = 0;
+    document.querySelectorAll(".cfg-pct-input").forEach((inp) => {
+      const pct = parseFloat(inp.value) || 0;
+      suma += pct;
+      const montoEl = document.getElementById(`pct-monto-${inp.dataset.id}`);
+      if (montoEl) montoEl.textContent = `= ${formatoMoneda(ing * pct / 100)}`;
+    });
+    const aviso = document.getElementById("cfg-suma-aviso");
+    if (Math.abs(suma - 100) < 0.5) {
+      aviso.textContent = "✓ Los porcentajes suman 100%";
+      aviso.style.color = "var(--color-positivo)";
+    } else {
+      aviso.textContent = `⚠ Los porcentajes suman ${suma}% (deben sumar 100%)`;
+      aviso.style.color = "var(--color-advertencia)";
+    }
+  }
+  actualizarPreview();
+  document.getElementById("cfg-ingreso").addEventListener("input", actualizarPreview);
+  document.querySelectorAll(".cfg-pct-input").forEach((inp) =>
+    inp.addEventListener("input", actualizarPreview)
+  );
+
+  document.getElementById("btn-guardar-config").addEventListener("click", async () => {
+    const ingreso = parseFloat(document.getElementById("cfg-ingreso").value) || 0;
+    let suma = 0;
+    const updates = [...document.querySelectorAll(".cfg-pct-input")].map((inp) => {
+      const pct = parseFloat(inp.value) || 0;
+      suma += pct;
+      return { id: inp.dataset.id, porcentaje: pct };
+    });
+    if (categoriasGrandesCache.length > 0 && Math.abs(suma - 100) > 0.5) {
+      if (!confirm(`Los porcentajes suman ${suma}%. ¿Guardar de todas formas?`)) return;
+    }
+    await guardarConfiguracion(ingreso);
+    for (const u of updates) {
+      await db.from("categorias_grandes").update({ porcentaje: u.porcentaje }).eq("id", u.id);
+    }
+    cerrarModal();
+    await Promise.all([cargarConfiguracion(), cargarCategoriasGrandes()]);
+    renderizarDashboard();
+    renderizarPresupuesto();
+  });
+}
+
+// --- Modal: Categoría grande ---
+function abrirModalCategoriaGrande(id) {
+  const cat = id ? categoriasGrandesCache.find((c) => c.id === id) : null;
+  abrirModal(`
+    <h3>${cat ? "Editar" : "Nueva"} categoría</h3>
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="cg-nombre" value="${cat ? escapeHtml(cat.nombre) : ""}" placeholder="Ej: Obligaciones">
+    </div>
+    <div class="campo">
+      <label>Porcentaje del ingreso mensual</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="number" id="cg-pct" min="0" max="100" value="${cat ? cat.porcentaje : 0}" style="width:80px;">
+        <span>%</span>
+      </div>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-cat">Guardar</button>
+    </div>
+  `);
+
+  document.getElementById("btn-guardar-cat").addEventListener("click", async () => {
+    const nombre = document.getElementById("cg-nombre").value.trim();
+    const porcentaje = parseFloat(document.getElementById("cg-pct").value) || 0;
+    if (!nombre) return alert("Escribe un nombre");
+    const payload = { nombre, porcentaje, orden: cat ? cat.orden : categoriasGrandesCache.length + 1 };
+    let error;
+    if (cat) {
+      ({ error } = await db.from("categorias_grandes").update(payload).eq("id", cat.id));
+    } else {
+      ({ error } = await db.from("categorias_grandes").insert(payload));
+    }
+    if (error) return alert("Error: " + error.message);
+    cerrarModal();
+    await Promise.all([cargarCategoriasGrandes(), cargarSubcategorias()]);
+    renderizarPresupuesto();
+  });
+}
+
+async function eliminarCategoriaGrande(id) {
+  if (!confirm("¿Eliminar esta categoría y todas sus subcategorías? Los movimientos registrados no se borran.")) return;
+  const { error } = await db.from("categorias_grandes").delete().eq("id", id);
+  if (error) return alert("Error: " + error.message);
+  await Promise.all([cargarCategoriasGrandes(), cargarSubcategorias()]);
+  renderizarPresupuesto();
+}
+
+// --- Modal: Subcategoría ---
+function abrirModalSubcategoria(categoriaGrandeId) {
+  const catGrande = categoriasGrandesCache.find((c) => c.id === categoriaGrandeId);
+  abrirModal(`
+    <h3>Nueva subcategoría en ${escapeHtml(catGrande ? catGrande.nombre : "")}</h3>
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="sc-nombre" placeholder="Ej: Arriendo, Luz, Netflix...">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-subcat">Guardar</button>
+    </div>
+  `);
+
+  document.getElementById("btn-guardar-subcat").addEventListener("click", async () => {
+    const nombre = document.getElementById("sc-nombre").value.trim();
+    if (!nombre) return alert("Escribe un nombre");
+    const { error } = await db.from("subcategorias").insert({ nombre, categoria_grande_id: categoriaGrandeId });
+    if (error) return alert("Error: " + error.message);
+    cerrarModal();
+    await cargarSubcategorias();
+    renderizarPresupuesto();
+  });
+}
+
+async function eliminarSubcategoria(id) {
+  if (!confirm("¿Eliminar esta subcategoría?")) return;
+  const { error } = await db.from("subcategorias").delete().eq("id", id);
+  if (error) return alert("Error: " + error.message);
+  await cargarSubcategorias();
+  renderizarPresupuesto();
+}
+
+// --- Modal: Meta de ahorro ---
+function abrirModalMeta(id) {
+  const meta = id ? metasAhorroCache.find((m) => m.id === id) : null;
+  abrirModal(`
+    <h3>${meta ? "Editar" : "Nueva"} meta de ahorro</h3>
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="meta-nombre" value="${meta ? escapeHtml(meta.nombre) : ""}" placeholder="Ej: Fondo de emergencia">
+    </div>
+    <div class="campo">
+      <label>Valor objetivo</label>
+      <input type="number" id="meta-objetivo" min="0" value="${meta ? meta.valor_objetivo : ""}" placeholder="0">
+    </div>
+    <div class="campo">
+      <label>Valor ahorrado hasta ahora</label>
+      <input type="number" id="meta-ahorrado" min="0" value="${meta ? meta.valor_ahorrado : 0}" placeholder="0">
+    </div>
+    <div class="campo">
+      <label>Fecha objetivo (opcional)</label>
+      <input type="date" id="meta-fecha" value="${meta && meta.fecha_objetivo ? meta.fecha_objetivo : ""}">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-meta">Guardar</button>
+    </div>
+  `);
+
+  document.getElementById("btn-guardar-meta").addEventListener("click", async () => {
+    const payload = {
+      nombre: document.getElementById("meta-nombre").value.trim(),
+      valor_objetivo: parseFloat(document.getElementById("meta-objetivo").value),
+      valor_ahorrado: parseFloat(document.getElementById("meta-ahorrado").value) || 0,
+      fecha_objetivo: document.getElementById("meta-fecha").value || null,
+    };
+    if (!payload.nombre || !payload.valor_objetivo) return alert("Completa nombre y valor objetivo");
+    let error;
+    if (meta) {
+      ({ error } = await db.from("metas_ahorro").update(payload).eq("id", meta.id));
+    } else {
+      ({ error } = await db.from("metas_ahorro").insert(payload));
+    }
+    if (error) return alert("Error: " + error.message);
+    cerrarModal();
+    await cargarMetasAhorro();
+    renderizarPresupuesto();
+  });
+}
+
+async function eliminarMeta(id) {
+  if (!confirm("¿Eliminar esta meta de ahorro?")) return;
+  const { error } = await db.from("metas_ahorro").update({ activa: false }).eq("id", id);
+  if (error) return alert("Error: " + error.message);
+  await cargarMetasAhorro();
+  renderizarPresupuesto();
 }
 
 // ============================================

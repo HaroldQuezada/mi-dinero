@@ -40,6 +40,7 @@
     <button class="tab" data-tab="movimientos">Movimientos</button>
     <button class="tab" data-tab="deudas">Deudas</button>
     <button class="tab" data-tab="gastos-fijos">Gastos fijos</button>
+    <button class="tab" data-tab="presupuesto">Presupuesto</button>
   </nav>
 
   <main class="contenido">
@@ -87,6 +88,20 @@
           </div>
         </div>
         <div id="d-grafica-categorias"></div>
+      </div>
+
+      <div class="bloque" id="bloque-distribucion-ingreso">
+        <div class="panel-header" style="margin-bottom:12px;">
+          <h2 style="margin:0;">Distribución del ingreso</h2>
+          <button class="btn-secundario btn-pequeno" onclick="abrirModalConfiguracion()">⚙ Configurar</button>
+        </div>
+        <p class="fila-detalle" style="margin-bottom:12px;">Ingreso mensual: <strong id="d-ingreso-mensual">$0</strong></p>
+        <div id="d-distribucion-categorias"></div>
+      </div>
+
+      <div class="bloque">
+        <h2>Metas de ahorro</h2>
+        <div id="d-metas-ahorro"></div>
       </div>
 
       <div class="bloque">
@@ -141,6 +156,50 @@
       <div id="lista-gastos-fijos" class="lista-tabla">
         <p class="vacio">Cargando...</p>
       </div>
+    </section>
+
+    <!-- ---------- PRESUPUESTO ---------- -->
+    <section id="panel-presupuesto" class="panel oculto">
+
+      <div class="panel-header">
+        <h2>Presupuesto</h2>
+        <button class="btn-primario" onclick="abrirModalConfiguracion()">⚙ Configurar ingreso y %</button>
+      </div>
+
+      <!-- Resumen ingreso -->
+      <div class="tarjetas" style="margin-bottom:20px;">
+        <div class="tarjeta">
+          <span class="tarjeta-label">Ingreso mensual</span>
+          <span class="tarjeta-valor" id="p-ingreso-mensual">$0</span>
+        </div>
+        <div class="tarjeta">
+          <span class="tarjeta-label">Comprometido este mes</span>
+          <span class="tarjeta-valor" id="p-comprometido">$0</span>
+        </div>
+        <div class="tarjeta tarjeta-destacada">
+          <span class="tarjeta-label">Disponible</span>
+          <span class="tarjeta-valor" id="p-disponible">$0</span>
+        </div>
+      </div>
+
+      <!-- Distribución por categoría grande -->
+      <div class="bloque">
+        <div class="panel-header" style="margin-bottom:12px;">
+          <h2 style="margin:0;">Categorías y límites</h2>
+          <button class="btn-primario btn-pequeno" onclick="abrirModalCategoriaGrande()">+ Categoría</button>
+        </div>
+        <div id="p-categorias-grandes"></div>
+      </div>
+
+      <!-- Metas de ahorro -->
+      <div class="bloque">
+        <div class="panel-header" style="margin-bottom:12px;">
+          <h2 style="margin:0;">Metas de ahorro</h2>
+          <button class="btn-primario btn-pequeno" onclick="abrirModalMeta()">+ Meta</button>
+        </div>
+        <div id="p-metas-ahorro"></div>
+      </div>
+
     </section>
 
   </main>
