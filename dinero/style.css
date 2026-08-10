@@ -755,3 +755,12 @@
   text-transform: uppercase;
   margin-bottom: 2px;
 }
+
+/* ============================================
+   TARJETA — sublabel (texto pequeño debajo del valor)
+============================================ */
+.tarjeta-sublabel {
+  font-size: 11px;
+  color: var(--color-texto-suave);
+  margin-top: 2px;
+}

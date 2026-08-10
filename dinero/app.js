@@ -12,6 +12,7 @@ let configuracionCache = { ingreso_mensual: 0 };
 let categoriasGrandesCache = [];   // Obligaciones, Ocio, Ahorro
 let subcategoriasCache = [];       // Arriendo, Luz, Netflix, etc.
 let metasAhorroCache = [];
+let cortesDelMesCache = [];        // cortes de tarjeta del mes actual
 
 // ============================================
 // UTILIDADES
@@ -111,6 +112,7 @@ async function cargarTodo() {
     cargarDeudas(),
     cargarGastosFijos(),
     cargarMetasAhorro(),
+    cargarCortesDelMes(),
   ]);
   await cargarSubcategorias();
   renderizarDashboard();
@@ -161,6 +163,19 @@ async function cargarMetasAhorro() {
     .from("metas_ahorro").select("*").eq("activa", true).order("created_at", { ascending: true });
   if (error) { console.error(error); return; }
   metasAhorroCache = data || [];
+}
+
+async function cargarCortesDelMes() {
+  const { data, error } = await db
+    .from("tarjeta_cortes")
+    .select("*")
+    .eq("mes", mesActual());
+  if (error) { console.error(error); return; }
+  cortesDelMesCache = data || [];
+}
+
+function corteDelMes(deudaId) {
+  return cortesDelMesCache.find((c) => c.deuda_id === deudaId);
 }
 
 // ============================================
@@ -443,6 +458,40 @@ function renderizarDeudas() {
     const badgePago = `<span class="badge ${pagadoEsteMes ? "badge-ok" : "badge-pendiente"}">${pagadoEsteMes ? "Pagado este mes" : "Pendiente este mes"}</span>`;
 
     if (d.tipo === "tarjeta_credito") {
+      const corte = corteDelMes(d.id);
+      const hoy = new Date();
+      const mesLabel = hoy.toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+
+      // Calcular fecha de corte y límite de pago para este mes
+      let fechaCorteStr = d.dia_corte ? `Día ${d.dia_corte} de cada mes` : "Sin configurar";
+      let fechaLimiteStr = "Sin configurar";
+      let alertaVencimiento = "";
+
+      if (d.dia_limite_pago) {
+        // Si el día límite ya pasó este mes, mostramos el del mes siguiente
+        const diaLimite = d.dia_limite_pago;
+        let fechaLimite = new Date(hoy.getFullYear(), hoy.getMonth(), diaLimite);
+        if (fechaLimite < hoy && !corte?.pagado) {
+          fechaLimite.setMonth(fechaLimite.getMonth() + 1);
+        }
+        fechaLimiteStr = fechaLimite.toLocaleDateString("es-CO", { day: "numeric", month: "long" });
+        const diasRestantes = Math.ceil((fechaLimite - hoy) / (1000 * 60 * 60 * 24));
+        if (!corte?.pagado) {
+          if (diasRestantes <= 0) {
+            alertaVencimiento = `<p class="alerta-cat barra-excedido-texto">⚠ Fecha límite vencida</p>`;
+          } else if (diasRestantes <= 5) {
+            alertaVencimiento = `<p class="alerta-cat barra-advertencia-texto">⚠ Vence en ${diasRestantes} día${diasRestantes === 1 ? "" : "s"}</p>`;
+          }
+        }
+      }
+
+      const montoCorte = corte ? corte.monto_corte : 0;
+      const badgeCorte = corte?.pagado
+        ? `<span class="badge badge-ok">Pagado</span>`
+        : montoCorte > 0
+          ? `<span class="badge badge-pendiente">Pendiente: ${formatoMoneda(montoCorte)}</span>`
+          : `<span class="badge badge-pendiente">Sin monto de corte</span>`;
+
       return `
         <div class="tarjeta-deuda">
           <div class="tarjeta-deuda-header">
@@ -452,13 +501,18 @@ function renderizarDeudas() {
               <button onclick="eliminarDeuda('${d.id}')">Eliminar</button>
             </div>
           </div>
-          <div class="deuda-datos">
-            <div><span>Saldo actual</span>${formatoMoneda(d.saldo_tarjeta)}</div>
-            <div><span>Pago mensual</span>${formatoMoneda(d.pago_mensual_planeado)}</div>
-            <div><span>Este mes</span>${badgePago}</div>
+          <div class="deuda-datos" style="grid-template-columns: repeat(2,1fr);">
+            <div><span>Saldo en tarjeta</span>${formatoMoneda(d.saldo_tarjeta)}</div>
+            <div><span>Corte mensual</span>Día ${d.dia_corte || "—"}</div>
+            <div><span>Límite de pago</span>${fechaLimiteStr}</div>
+            <div><span>Corte ${mesLabel}</span>${badgeCorte}</div>
           </div>
-          <div class="deuda-acciones">
-            <button class="btn-secundario btn-pequeno" onclick="registrarPagoDeuda('${d.id}')">Registrar pago</button>
+          ${alertaVencimiento}
+          <div class="deuda-acciones" style="gap:8px;flex-wrap:wrap;">
+            <button class="btn-secundario btn-pequeno" onclick="abrirModalCorte('${d.id}')">
+              ${corte ? "✎ Editar corte" : "+ Registrar corte de este mes"}
+            </button>
+            ${montoCorte > 0 && !corte?.pagado ? `<button class="btn-primario btn-pequeno" onclick="registrarPagoDeuda('${d.id}')">Pagar corte</button>` : ""}
           </div>
         </div>
       `;
@@ -542,6 +596,18 @@ function abrirModalDeuda(id) {
         <label>Saldo actual que debes</label>
         <input type="number" id="deuda-saldo-tarjeta" min="0" value="${deuda && deuda.tipo === "tarjeta_credito" ? deuda.saldo_tarjeta : 0}" placeholder="0">
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="campo">
+          <label>Día de corte</label>
+          <input type="number" id="deuda-dia-corte" min="1" max="31"
+            value="${deuda && deuda.dia_corte ? deuda.dia_corte : ""}" placeholder="Ej: 15">
+        </div>
+        <div class="campo">
+          <label>Día límite de pago</label>
+          <input type="number" id="deuda-dia-limite" min="1" max="31"
+            value="${deuda && deuda.dia_limite_pago ? deuda.dia_limite_pago : ""}" placeholder="Ej: 5">
+        </div>
+      </div>
     </div>
 
     <div class="campo">
@@ -580,7 +646,8 @@ function abrirModalDeuda(id) {
 
     if (tipo === "tarjeta_credito") {
       payload.saldo_tarjeta = parseFloat(document.getElementById("deuda-saldo-tarjeta").value) || 0;
-      // Para tarjetas no usamos monto_total/pagado_acumulado, los dejamos en 0
+      payload.dia_corte = parseInt(document.getElementById("deuda-dia-corte").value) || null;
+      payload.dia_limite_pago = parseInt(document.getElementById("deuda-dia-limite").value) || null;
       payload.monto_total = 0;
       payload.pagado_acumulado = 0;
     } else {
@@ -612,17 +679,73 @@ async function eliminarDeuda(id) {
   renderizarDashboard();
 }
 
+// Modal para registrar/editar el monto del corte de este mes en una tarjeta
+function abrirModalCorte(deudaId) {
+  const deuda = deudasCache.find((d) => d.id === deudaId);
+  const corte = corteDelMes(deudaId);
+  const mes = mesActual();
+  const mesLabel = new Date().toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+
+  // Calcular fecha límite sugerida desde dia_limite_pago
+  let fechaLimiteSugerida = "";
+  if (deuda.dia_limite_pago) {
+    const hoy = new Date();
+    let fecha = new Date(hoy.getFullYear(), hoy.getMonth(), deuda.dia_limite_pago);
+    if (fecha < hoy) fecha.setMonth(fecha.getMonth() + 1);
+    fechaLimiteSugerida = fecha.toISOString().slice(0, 10);
+  }
+
+  abrirModal(`
+    <h3>Corte de ${escapeHtml(deuda.nombre)}</h3>
+    <p class="fila-detalle" style="margin-bottom:14px;">Mes: ${mesLabel}</p>
+    <div class="campo">
+      <label>Monto a pagar este corte</label>
+      <input type="number" id="corte-monto" min="0" value="${corte ? corte.monto_corte : ""}" placeholder="0">
+    </div>
+    <div class="campo">
+      <label>Fecha límite de pago</label>
+      <input type="date" id="corte-fecha-limite" value="${corte && corte.fecha_limite ? corte.fecha_limite : fechaLimiteSugerida}">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-corte">Guardar</button>
+    </div>
+  `);
+
+  document.getElementById("btn-guardar-corte").addEventListener("click", async () => {
+    const monto = parseFloat(document.getElementById("corte-monto").value);
+    const fechaLimite = document.getElementById("corte-fecha-limite").value || null;
+    if (!monto || monto <= 0) return alert("Ingresa el monto del corte");
+
+    const payload = { deuda_id: deudaId, mes, monto_corte: monto, fecha_limite: fechaLimite };
+    const { error } = await db.from("tarjeta_cortes")
+      .upsert(payload, { onConflict: "deuda_id,mes" });
+    if (error) return alert("Error: " + error.message);
+
+    cerrarModal();
+    await Promise.all([cargarCortesDelMes(), cargarDeudas()]);
+    renderizarDashboard();
+    renderizarPresupuesto();
+  });
+}
+
 function registrarPagoDeuda(id) {
   const deuda = deudasCache.find((d) => d.id === id);
   const esTarjeta = deuda.tipo === "tarjeta_credito";
+  const corte = esTarjeta ? corteDelMes(id) : null;
+  const montoSugerido = esTarjeta
+    ? (corte ? corte.monto_corte : 0)
+    : deuda.pago_mensual_planeado;
   const saldoActual = esTarjeta ? deuda.saldo_tarjeta : (deuda.monto_total - deuda.pagado_acumulado);
 
   abrirModal(`
-    <h3>Registrar pago — ${escapeHtml(deuda.nombre)}</h3>
-    <p class="fila-detalle" style="margin-bottom:14px;">Saldo actual: ${formatoMoneda(saldoActual)}</p>
+    <h3>Pagar ${esTarjeta ? "corte de " : ""}${escapeHtml(deuda.nombre)}</h3>
+    <p class="fila-detalle" style="margin-bottom:14px;">
+      ${esTarjeta ? `Monto del corte: <strong>${formatoMoneda(montoSugerido)}</strong>` : `Saldo: ${formatoMoneda(saldoActual)}`}
+    </p>
     <div class="campo">
-      <label>Monto a abonar</label>
-      <input type="number" id="pago-monto" min="0" value="${deuda.pago_mensual_planeado}">
+      <label>Monto a pagar</label>
+      <input type="number" id="pago-monto" min="0" value="${montoSugerido}" placeholder="0">
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -634,33 +757,41 @@ function registrarPagoDeuda(id) {
     const monto = parseFloat(document.getElementById("pago-monto").value);
     if (!monto || monto <= 0) return alert("Ingresa un monto válido");
 
-    // Actualiza el saldo de la deuda (resta, según su tipo)
+    // Actualiza el saldo de la deuda según su tipo
     const { error: errorDeuda } = esTarjeta
       ? await db.from("deudas").update({ saldo_tarjeta: Math.max(deuda.saldo_tarjeta - monto, 0) }).eq("id", deuda.id)
       : await db.from("deudas").update({ pagado_acumulado: deuda.pagado_acumulado + monto }).eq("id", deuda.id);
     if (errorDeuda) return alert("Error: " + errorDeuda.message);
 
-    // Se registra como movimiento (gasto) en el historial
+    // Crea movimiento de gasto en el historial
     const { data: mov, error: errorMov } = await db.from("movimientos").insert({
       tipo: "gasto",
       monto,
       categoria: "Pago de deuda",
       fecha: fechaHoy(),
-      nota: `Pago: ${deuda.nombre}`,
+      nota: `Pago${esTarjeta ? " corte" : ""}: ${deuda.nombre}`,
       metodo_pago: "efectivo",
     }).select().single();
     if (errorMov) return alert("Error: " + errorMov.message);
 
-    // Marca esta deuda como "pagada este mes" (para el cálculo de Comprometido este mes)
-    await db.from("deudas_pagos").upsert({
-      deuda_id: deuda.id,
-      mes: mesActual(),
-      movimiento_id: mov.id,
-    }, { onConflict: "deuda_id,mes" });
+    if (esTarjeta) {
+      // Marca el corte del mes como pagado
+      if (corte) {
+        await db.from("tarjeta_cortes").update({ pagado: true, movimiento_id: mov.id }).eq("id", corte.id);
+      }
+    } else {
+      // Marca la deuda como pagada este mes (deudas_pagos)
+      await db.from("deudas_pagos").upsert({
+        deuda_id: deuda.id,
+        mes: mesActual(),
+        movimiento_id: mov.id,
+      }, { onConflict: "deuda_id,mes" });
+    }
 
     cerrarModal();
-    await Promise.all([cargarDeudas(), cargarMovimientos()]);
+    await Promise.all([cargarDeudas(), cargarMovimientos(), cargarCortesDelMes()]);
     renderizarDashboard();
+    renderizarPresupuesto();
   });
 }
 
@@ -839,19 +970,48 @@ function renderizarDashboard() {
     .filter((m) => m.tipo === "gasto")
     .reduce((acc, m) => acc + m.monto, 0);
 
-  // Comprometido este mes: gastos fijos pendientes + pagos de deuda pendientes (no marcados este mes)
+  // Comprometido este mes: gastos fijos pendientes + cuotas de deuda pendientes
+  // Para tarjetas de crédito: usa el monto del corte del mes (dinámico)
+  // Para deudas normales: usa el pago mensual planeado (fijo)
   const gastosFijosPendientes = gastosFijosCache
     .filter((g) => !estaPagadoEsteMes(g.id))
     .reduce((acc, g) => acc + g.monto, 0);
 
   const deudasPendientesEsteMes = deudasCache
     .filter((d) => !estaDeudaPagadaEsteMes(d.id))
-    .reduce((acc, d) => acc + d.pago_mensual_planeado, 0);
+    .reduce((acc, d) => {
+      if (d.tipo === "tarjeta_credito") {
+        const corte = corteDelMes(d.id);
+        return acc + (corte ? corte.monto_corte : 0);
+      }
+      return acc + d.pago_mensual_planeado;
+    }, 0);
 
   const comprometido = gastosFijosPendientes + deudasPendientesEsteMes;
-  const dineroLibre = balance - comprometido;
 
-  // Deuda total pendiente: deudas normales (monto_total - pagado) + saldo de tarjetas de crédito
+  // Disponible para gastar = presupuesto de Ocio - lo gastado en categorías de Ocio este mes
+  const catOcio = categoriasGrandesCache.find(
+    (c) => c.nombre.toLowerCase().includes("ocio")
+  );
+  let dineroLibre = 0;
+  if (catOcio && configuracionCache.ingreso_mensual > 0) {
+    const presupuestoOcio = configuracionCache.ingreso_mensual * (catOcio.porcentaje / 100);
+    const subsOcio = new Set(
+      subcategoriasCache
+        .filter((s) => s.categoria_grande_id === catOcio.id)
+        .map((s) => s.nombre)
+    );
+    subsOcio.add(catOcio.nombre);
+    const gastadoOcio = movimientosDelMes
+      .filter((m) => m.tipo === "gasto" && subsOcio.has(m.categoria))
+      .reduce((acc, m) => acc + m.monto, 0);
+    dineroLibre = presupuestoOcio - gastadoOcio;
+  } else {
+    // fallback si no hay categoría de Ocio configurada
+    dineroLibre = balance - comprometido;
+  }
+
+  // Deuda total pendiente
   const deudaTotal = deudasCache.reduce((acc, d) => {
     if (d.tipo === "tarjeta_credito") return acc + d.saldo_tarjeta;
     return acc + Math.max(d.monto_total - d.pagado_acumulado, 0);
@@ -1160,15 +1320,37 @@ function renderizarPresupuesto() {
     gastosPorCategoria[m.categoria] = (gastosPorCategoria[m.categoria] || 0) + m.monto;
   });
 
-  // Comprometido (mismo cálculo que el dashboard)
+  // Comprometido y disponible — misma lógica que el dashboard
   const gastosFijosPendientes = gastosFijosCache
     .filter((g) => !estaPagadoEsteMes(g.id))
     .reduce((acc, g) => acc + g.monto, 0);
   const deudasPendientes = deudasCache
     .filter((d) => !estaDeudaPagadaEsteMes(d.id))
-    .reduce((acc, d) => acc + d.pago_mensual_planeado, 0);
+    .reduce((acc, d) => {
+      if (d.tipo === "tarjeta_credito") {
+        const corte = corteDelMes(d.id);
+        return acc + (corte ? corte.monto_corte : 0);
+      }
+      return acc + d.pago_mensual_planeado;
+    }, 0);
   const comprometido = gastosFijosPendientes + deudasPendientes;
-  const disponible = ingreso - comprometido;
+
+  // Disponible = presupuesto de Ocio − gastado en Ocio este mes
+  const catOcio = categoriasGrandesCache.find((c) => c.nombre.toLowerCase().includes("ocio"));
+  let disponible = 0;
+  if (catOcio && ingreso > 0) {
+    const presupuestoOcio = ingreso * (catOcio.porcentaje / 100);
+    const subsOcio = new Set(
+      subcategoriasCache.filter((s) => s.categoria_grande_id === catOcio.id).map((s) => s.nombre)
+    );
+    subsOcio.add(catOcio.nombre);
+    const gastadoOcio = gastosDelMes
+      .filter((m) => subsOcio.has(m.categoria))
+      .reduce((acc, m) => acc + m.monto, 0);
+    disponible = presupuestoOcio - gastadoOcio;
+  } else {
+    disponible = ingreso - comprometido;
+  }
 
   // Tarjetas superiores
   document.getElementById("p-ingreso-mensual").textContent = formatoMoneda(ingreso);
