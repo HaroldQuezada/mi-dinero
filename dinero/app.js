@@ -918,8 +918,21 @@ function abrirModalGastoFijo(id) {
   `);
 
   const select = document.getElementById("gf-categoria");
-  select.innerHTML = categoriasGasto.map((c) => `<option value="${c}">${c}</option>`).join("");
-  if (gasto) select.value = gasto.categoria;
+  if (categoriasGrandesCache.length === 0) {
+    select.innerHTML = `<option value="Sin categoría">Sin categoría (crea categorías en Presupuesto)</option>`;
+  } else {
+    select.innerHTML = categoriasGrandesCache.map((cg) => {
+      const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
+      const opciones = subs.length > 0
+        ? subs.map((s) => `<option value="${escapeHtml(s.nombre)}">${escapeHtml(s.nombre)}</option>`).join("")
+        : `<option value="${escapeHtml(cg.nombre)}">${escapeHtml(cg.nombre)} (general)</option>`;
+      return `<optgroup label="${escapeHtml(cg.nombre)}">${opciones}</optgroup>`;
+    }).join("");
+  }
+  if (gasto && gasto.categoria) {
+    const opts = [...select.options].map((o) => o.value);
+    if (opts.includes(gasto.categoria)) select.value = gasto.categoria;
+  }
 
   document.getElementById("btn-guardar-gasto-fijo").addEventListener("click", async () => {
     const payload = {
