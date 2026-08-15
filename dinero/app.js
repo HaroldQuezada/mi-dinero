@@ -13,6 +13,10 @@ let categoriasGrandesCache = [];   // Obligaciones, Ocio, Ahorro
 let subcategoriasCache = [];       // Arriendo, Luz, Netflix, etc.
 let metasAhorroCache = [];
 let cortesDelMesCache = [];        // cortes de tarjeta del mes actual
+let cuentasCache = [];             // Débito, Nequi, Daviplata, Efectivo, etc.
+let presupuestoMesCache = null;    // override manual de ocio del mes actual
+let ahorrosProgramadosCache = [];  // reglas de ahorro configuradas
+let ahorrosEjecucionesCache = [];  // ejecuciones del mes actual
 
 // ============================================
 // UTILIDADES
@@ -113,8 +117,11 @@ async function cargarTodo() {
     cargarGastosFijos(),
     cargarMetasAhorro(),
     cargarCortesDelMes(),
+    cargarCuentas(),
+    cargarPresupuestoMes(),
+    cargarAhorrosProgramados(),
   ]);
-  await cargarSubcategorias();
+  await Promise.all([cargarSubcategorias(), cargarAhorrosEjecuciones()]);
   renderizarDashboard();
   renderizarPresupuesto();
 }
@@ -167,15 +174,72 @@ async function cargarMetasAhorro() {
 
 async function cargarCortesDelMes() {
   const { data, error } = await db
-    .from("tarjeta_cortes")
-    .select("*")
-    .eq("mes", mesActual());
+    .from("tarjeta_cortes").select("*").eq("mes", mesActual());
   if (error) { console.error(error); return; }
   cortesDelMesCache = data || [];
 }
 
 function corteDelMes(deudaId) {
   return cortesDelMesCache.find((c) => c.deuda_id === deudaId);
+}
+
+// ============================================
+// CUENTAS (Débito, Nequi, Daviplata, Efectivo)
+// ============================================
+async function cargarCuentas() {
+  const { data, error } = await db
+    .from("cuentas").select("*").eq("activa", true).order("orden", { ascending: true });
+  if (error) { console.error(error); return; }
+  cuentasCache = data || [];
+}
+
+function saldoCuenta(cuentaId) {
+  const cuenta = cuentasCache.find((c) => c.id === cuentaId);
+  if (!cuenta) return 0;
+  const movs = movimientosCache.filter((m) => m.cuenta_id === cuentaId);
+  const delta = movs.reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0);
+  return cuenta.saldo_inicial + delta;
+}
+
+// ============================================
+// PRESUPUESTO MENSUAL (override manual de Ocio)
+// ============================================
+async function cargarPresupuestoMes() {
+  const { data, error } = await db
+    .from("presupuesto_mes").select("*").eq("mes", mesActual()).maybeSingle();
+  if (error) { console.error(error); return; }
+  presupuestoMesCache = data || null;
+}
+
+function presupuestoOcioActual() {
+  // Si hay un override manual para este mes, úsalo
+  if (presupuestoMesCache) return presupuestoMesCache.monto_ocio;
+  // Si no, calcula desde el porcentaje configurado
+  const catOcio = categoriasGrandesCache.find((c) => c.nombre.toLowerCase().includes("ocio"));
+  if (!catOcio || !configuracionCache.ingreso_mensual) return 0;
+  return configuracionCache.ingreso_mensual * (catOcio.porcentaje / 100);
+}
+
+// ============================================
+// AHORROS PROGRAMADOS
+// ============================================
+async function cargarAhorrosProgramados() {
+  const { data, error } = await db
+    .from("ahorros_programados").select("*").eq("activo", true).order("created_at");
+  if (error) { console.error(error); return; }
+  ahorrosProgramadosCache = data || [];
+}
+
+async function cargarAhorrosEjecuciones() {
+  if (ahorrosProgramadosCache.length === 0) { ahorrosEjecucionesCache = []; return; }
+  const { data, error } = await db
+    .from("ahorros_ejecuciones").select("*").eq("mes", mesActual());
+  if (error) { console.error(error); return; }
+  ahorrosEjecucionesCache = data || [];
+}
+
+function ejecucionAhorro(ahorroId) {
+  return ahorrosEjecucionesCache.find((e) => e.ahorro_id === ahorroId);
 }
 
 // ============================================
@@ -223,6 +287,11 @@ function renderizarMovimientos() {
 function descripcionMetodoPago(metodoPago) {
   if (!metodoPago || metodoPago === "efectivo") return "Efectivo";
   if (metodoPago === "debito") return "Débito";
+  if (metodoPago.startsWith("cuenta:")) {
+    const cuentaId = metodoPago.split(":")[1];
+    const cuenta = cuentasCache.find((c) => c.id === cuentaId);
+    return cuenta ? cuenta.nombre : "Cuenta eliminada";
+  }
   if (metodoPago.startsWith("credito:")) {
     const deudaId = metodoPago.split(":")[1];
     const deuda = deudasCache.find((d) => d.id === deudaId);
@@ -279,10 +348,12 @@ function abrirModalMovimiento(id) {
     </div>
     <div class="campo">
       <label>Categoría</label>
-      <select id="mov-categoria"></select>
+      <input type="text" id="mov-categoria" list="dl-categorias" autocomplete="off"
+        placeholder="Ej: Comida, Cine, Arriendo...">
+      <datalist id="dl-categorias"></datalist>
     </div>
     <div class="campo" id="campo-metodo-pago">
-      <label>Método de pago</label>
+      <label>Cuenta</label>
       <select id="mov-metodo-pago"></select>
     </div>
     <div class="campo">
@@ -300,31 +371,33 @@ function abrirModalMovimiento(id) {
   `);
 
   function actualizarCategorias(tipo) {
-    const select = document.getElementById("mov-categoria");
+    const input = document.getElementById("mov-categoria");
+    const datalist = document.getElementById("dl-categorias");
+
     if (tipo === "ingreso") {
-      // Para ingresos: lista plana con opciones simples
       const opcionesIngreso = ["Salario", "Venta", "Regalo", "Ajuste de saldo", "Otro ingreso"];
-      select.innerHTML = opcionesIngreso.map((c) =>
-        `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`
-      ).join("");
+      datalist.innerHTML = opcionesIngreso.map((c) => `<option value="${escapeHtml(c)}">`).join("");
     } else {
-      // Para gastos: optgroups por categoría grande + subcategorías
-      if (categoriasGrandesCache.length === 0) {
-        select.innerHTML = `<option value="Sin categoría">Sin categoría (crea categorías en Presupuesto)</option>`;
-      } else {
-        select.innerHTML = categoriasGrandesCache.map((cg) => {
-          const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
-          const opciones = subs.length > 0
-            ? subs.map((s) => `<option value="${escapeHtml(s.nombre)}">${escapeHtml(s.nombre)}</option>`).join("")
-            : `<option value="${escapeHtml(cg.nombre)}">${escapeHtml(cg.nombre)} (general)</option>`;
-          return `<optgroup label="${escapeHtml(cg.nombre)}">${opciones}</optgroup>`;
-        }).join("");
-      }
+      // Subcategorías configuradas y categorías grandes como opciones base
+      const subcats = subcategoriasCache.map((s) => s.nombre);
+      const catGrandes = categoriasGrandesCache.map((cg) => cg.nombre);
+
+      // Historial ordenado por frecuencia de uso
+      const frecuencia = {};
+      movimientosCache
+        .filter((m) => m.tipo === "gasto")
+        .forEach((m) => { frecuencia[m.categoria] = (frecuencia[m.categoria] || 0) + 1; });
+      const historialOrdenado = Object.entries(frecuencia)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat]) => cat)
+        .filter((cat) => !subcats.includes(cat) && !catGrandes.includes(cat));
+
+      // Primero las más usadas, luego subcategorías, luego categorías grandes
+      const todas = [...new Set([...historialOrdenado, ...subcats, ...catGrandes])];
+      datalist.innerHTML = todas.map((c) => `<option value="${escapeHtml(c)}">`).join("");
     }
     if (movimiento && movimiento.categoria) {
-      // Intenta restaurar la categoría del movimiento que se está editando
-      const opts = [...select.options].map((o) => o.value);
-      if (opts.includes(movimiento.categoria)) select.value = movimiento.categoria;
+      input.value = movimiento.categoria;
     }
   }
   actualizarCategorias(tipoInicial);
@@ -332,13 +405,17 @@ function abrirModalMovimiento(id) {
   function actualizarMetodosPago() {
     const select = document.getElementById("mov-metodo-pago");
     const tarjetas = deudasCache.filter((d) => d.tipo === "tarjeta_credito");
-    const opciones = [
-      `<option value="efectivo">Efectivo</option>`,
-      `<option value="debito">Débito</option>`,
-      ...tarjetas.map((t) => `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`),
-    ];
-    select.innerHTML = opciones.join("");
-    if (movimiento && movimiento.metodo_pago) select.value = movimiento.metodo_pago;
+    const opcionesCuentas = cuentasCache.length > 0
+      ? cuentasCache.map((c) => `<option value="cuenta:${c.id}">${escapeHtml(c.nombre)}</option>`)
+      : [`<option value="efectivo">Efectivo (sin cuenta configurada)</option>`];
+    const opcionesTarjetas = tarjetas.map((t) =>
+      `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`
+    );
+    select.innerHTML = [...opcionesCuentas, ...opcionesTarjetas].join("");
+    if (movimiento && movimiento.metodo_pago) {
+      const opts = [...select.options].map((o) => o.value);
+      if (opts.includes(movimiento.metodo_pago)) select.value = movimiento.metodo_pago;
+    }
   }
 
   function actualizarVisibilidadMetodoPago(tipo) {
@@ -364,7 +441,8 @@ function abrirModalMovimiento(id) {
 
   document.getElementById("btn-guardar-movimiento").addEventListener("click", async () => {
     const tipo = document.getElementById("mov-tipo").value;
-    const metodoPago = tipo === "gasto" ? document.getElementById("mov-metodo-pago").value : "efectivo";
+    const metodoPago = document.getElementById("mov-metodo-pago").value;
+    const cuentaId = metodoPago.startsWith("cuenta:") ? metodoPago.split(":")[1] : null;
     const payload = {
       tipo,
       monto: parseFloat(document.getElementById("mov-monto").value),
@@ -372,6 +450,7 @@ function abrirModalMovimiento(id) {
       fecha: document.getElementById("mov-fecha").value,
       nota: document.getElementById("mov-nota").value.trim() || null,
       metodo_pago: metodoPago,
+      cuenta_id: cuentaId,
     };
     if (!payload.monto || payload.monto <= 0) return alert("Ingresa un monto válido");
     if (!payload.categoria) return alert("Ingresa una categoría");
@@ -909,7 +988,9 @@ function abrirModalGastoFijo(id) {
     </div>
     <div class="campo">
       <label>Categoría</label>
-      <select id="gf-categoria"></select>
+      <input type="text" id="gf-categoria" list="dl-cat-gf" autocomplete="off"
+        placeholder="Ej: Arriendo, Luz, Internet...">
+      <datalist id="dl-cat-gf"></datalist>
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -917,21 +998,21 @@ function abrirModalGastoFijo(id) {
     </div>
   `);
 
-  const select = document.getElementById("gf-categoria");
-  if (categoriasGrandesCache.length === 0) {
-    select.innerHTML = `<option value="Sin categoría">Sin categoría (crea categorías en Presupuesto)</option>`;
-  } else {
-    select.innerHTML = categoriasGrandesCache.map((cg) => {
-      const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
-      const opciones = subs.length > 0
-        ? subs.map((s) => `<option value="${escapeHtml(s.nombre)}">${escapeHtml(s.nombre)}</option>`).join("")
-        : `<option value="${escapeHtml(cg.nombre)}">${escapeHtml(cg.nombre)} (general)</option>`;
-      return `<optgroup label="${escapeHtml(cg.nombre)}">${opciones}</optgroup>`;
-    }).join("");
-  }
+  // Poblar datalist de categorías de gastos fijos (misma lógica que movimientos)
+  const dlGf = document.getElementById("dl-cat-gf");
+  const subcats = subcategoriasCache.map((s) => s.nombre);
+  const catGrandes = categoriasGrandesCache.map((cg) => cg.nombre);
+  const frecGf = {};
+  movimientosCache.filter((m) => m.tipo === "gasto")
+    .forEach((m) => { frecGf[m.categoria] = (frecGf[m.categoria] || 0) + 1; });
+  const histGf = Object.entries(frecGf)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat]) => cat)
+    .filter((cat) => !subcats.includes(cat) && !catGrandes.includes(cat));
+  const todasGf = [...new Set([...histGf, ...subcats, ...catGrandes])];
+  dlGf.innerHTML = todasGf.map((c) => `<option value="${escapeHtml(c)}">`).join("");
   if (gasto && gasto.categoria) {
-    const opts = [...select.options].map((o) => o.value);
-    if (opts.includes(gasto.categoria)) select.value = gasto.categoria;
+    document.getElementById("gf-categoria").value = gasto.categoria;
   }
 
   document.getElementById("btn-guardar-gasto-fijo").addEventListener("click", async () => {
@@ -969,10 +1050,10 @@ async function eliminarGastoFijo(id) {
 function renderizarDashboard() {
   const mes = mesActual();
 
-  // Balance actual: todo el historial
-  const balance = movimientosCache.reduce((acc, m) => {
-    return acc + (m.tipo === "ingreso" ? m.monto : -m.monto);
-  }, 0);
+  // Balance actual: suma de saldos de cuentas (si hay), si no suma histórica de movimientos
+  const balance = cuentasCache.length > 0
+    ? cuentasCache.reduce((acc, c) => acc + saldoCuenta(c.id), 0)
+    : movimientosCache.reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0);
 
   // Ingresos y gastos solo del mes actual
   const movimientosDelMes = movimientosCache.filter((m) => m.fecha.slice(0, 7) === mes);
@@ -983,13 +1064,10 @@ function renderizarDashboard() {
     .filter((m) => m.tipo === "gasto")
     .reduce((acc, m) => acc + m.monto, 0);
 
-  // Comprometido este mes: gastos fijos pendientes + cuotas de deuda pendientes
-  // Para tarjetas de crédito: usa el monto del corte del mes (dinámico)
-  // Para deudas normales: usa el pago mensual planeado (fijo)
+  // Comprometido este mes
   const gastosFijosPendientes = gastosFijosCache
     .filter((g) => !estaPagadoEsteMes(g.id))
     .reduce((acc, g) => acc + g.monto, 0);
-
   const deudasPendientesEsteMes = deudasCache
     .filter((d) => !estaDeudaPagadaEsteMes(d.id))
     .reduce((acc, d) => {
@@ -999,32 +1077,26 @@ function renderizarDashboard() {
       }
       return acc + d.pago_mensual_planeado;
     }, 0);
-
   const comprometido = gastosFijosPendientes + deudasPendientesEsteMes;
 
-  // Disponible para gastar = presupuesto de Ocio - lo gastado en categorías de Ocio este mes
-  const catOcio = categoriasGrandesCache.find(
-    (c) => c.nombre.toLowerCase().includes("ocio")
-  );
+  // Disponible para gastar = presupuesto de Ocio (manual o calculado) - gastado en Ocio
+  const presOcio = presupuestoOcioActual();
   let dineroLibre = 0;
-  if (catOcio && configuracionCache.ingreso_mensual > 0) {
-    const presupuestoOcio = configuracionCache.ingreso_mensual * (catOcio.porcentaje / 100);
-    const subsOcio = new Set(
-      subcategoriasCache
-        .filter((s) => s.categoria_grande_id === catOcio.id)
-        .map((s) => s.nombre)
-    );
-    subsOcio.add(catOcio.nombre);
+  if (presOcio > 0) {
+    const catOcio = categoriasGrandesCache.find((c) => c.nombre.toLowerCase().includes("ocio"));
+    const subsOcio = new Set(catOcio
+      ? subcategoriasCache.filter((s) => s.categoria_grande_id === catOcio.id).map((s) => s.nombre)
+      : []);
+    if (catOcio) subsOcio.add(catOcio.nombre);
     const gastadoOcio = movimientosDelMes
       .filter((m) => m.tipo === "gasto" && subsOcio.has(m.categoria))
       .reduce((acc, m) => acc + m.monto, 0);
-    dineroLibre = presupuestoOcio - gastadoOcio;
+    dineroLibre = presOcio - gastadoOcio;
   } else {
-    // fallback si no hay categoría de Ocio configurada
     dineroLibre = balance - comprometido;
   }
 
-  // Deuda total pendiente
+  // Deuda total
   const deudaTotal = deudasCache.reduce((acc, d) => {
     if (d.tipo === "tarjeta_credito") return acc + d.saldo_tarjeta;
     return acc + Math.max(d.monto_total - d.pagado_acumulado, 0);
@@ -1033,9 +1105,40 @@ function renderizarDashboard() {
   document.getElementById("d-balance").textContent = formatoMoneda(balance);
   document.getElementById("d-comprometido").textContent = formatoMoneda(comprometido);
   document.getElementById("d-libre").textContent = formatoMoneda(dineroLibre);
+  // Actualizar sublabel si hay override manual
+  const libreLabel = document.getElementById("d-libre-label");
+  if (libreLabel) {
+    libreLabel.textContent = presupuestoMesCache
+      ? "Ocio ajustado este mes"
+      : "Presupuesto de Ocio";
+  }
   document.getElementById("d-deuda").textContent = formatoMoneda(deudaTotal);
   document.getElementById("d-ingresos").textContent = formatoMoneda(ingresosMes);
   document.getElementById("d-gastos").textContent = formatoMoneda(gastosMes);
+
+  // Tarjetas de cuentas (Nequi, Daviplata, Efectivo, etc.)
+  const contenedorCuentas = document.getElementById("d-cuentas");
+  if (contenedorCuentas) {
+    if (cuentasCache.length === 0) {
+      contenedorCuentas.innerHTML = `
+        <p class="vacio" style="font-size:13px;">
+          No tienes cuentas configuradas.
+          <button class="btn-link" style="display:inline;width:auto;" onclick="abrirModalCuenta()">Agregar cuenta</button>
+        </p>`;
+    } else {
+      const iconoTipo = { banco: "🏦", billetera_digital: "📱", efectivo: "💵" };
+      contenedorCuentas.innerHTML = cuentasCache.map((c) => {
+        const saldo = saldoCuenta(c.id);
+        return `
+          <div class="tarjeta-cuenta">
+            <span class="cuenta-icono">${iconoTipo[c.tipo] || "💰"}</span>
+            <span class="cuenta-nombre">${escapeHtml(c.nombre)}</span>
+            <span class="cuenta-saldo ${saldo < 0 ? "negativo" : ""}">${formatoMoneda(saldo)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+  }
 
   renderizarGraficaCategorias();
   renderizarPresupuesto();
@@ -1373,6 +1476,69 @@ function renderizarPresupuesto() {
   // También actualizar el mini-bloque del dashboard
   const dIngreso = document.getElementById("d-ingreso-mensual");
   if (dIngreso) dIngreso.textContent = formatoMoneda(ingreso);
+
+  // ---- CUENTAS (en panel Presupuesto) ----
+  const contenedorPCuentas = document.getElementById("p-cuentas");
+  if (contenedorPCuentas) {
+    const iconoTipo = { banco: "🏦", billetera_digital: "📱", efectivo: "💵" };
+    if (cuentasCache.length === 0) {
+      contenedorPCuentas.innerHTML = `<p class="vacio">No tienes cuentas creadas aún.</p>`;
+    } else {
+      contenedorPCuentas.innerHTML = cuentasCache.map((c) => {
+        const saldo = saldoCuenta(c.id);
+        return `
+          <div class="fila">
+            <div class="fila-info">
+              <span class="fila-titulo">${iconoTipo[c.tipo] || "💰"} ${escapeHtml(c.nombre)}</span>
+              <span class="fila-detalle">Saldo inicial: ${formatoMoneda(c.saldo_inicial)}</span>
+            </div>
+            <span class="fila-monto ${saldo < 0 ? "negativo" : "positivo"}">${formatoMoneda(saldo)}</span>
+            <div class="fila-acciones">
+              <button onclick="abrirModalCuenta('${c.id}')">Editar</button>
+              <button onclick="eliminarCuenta('${c.id}')">Eliminar</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  // ---- AHORROS PROGRAMADOS ----
+  const contenedorAP = document.getElementById("p-ahorros-programados");
+  if (contenedorAP) {
+    if (ahorrosProgramadosCache.length === 0) {
+      contenedorAP.innerHTML = `<p class="vacio">No tienes ahorros programados. Crea uno para separar automáticamente parte de tu ingreso cada mes.</p>`;
+    } else {
+      contenedorAP.innerHTML = ahorrosProgramadosCache.map((a) => {
+        const ejecucion = ejecucionAhorro(a.id);
+        const monto = a.porcentaje
+          ? (ingreso * a.porcentaje / 100)
+          : (a.monto_fijo || 0);
+        const cuenta = cuentasCache.find((c) => c.id === a.cuenta_id);
+        const meta = metasAhorroCache.find((m) => m.id === a.meta_id);
+        return `
+          <div class="fila">
+            <div class="fila-info">
+              <span class="fila-titulo">${escapeHtml(a.nombre)}</span>
+              <span class="fila-detalle">
+                Día ${a.dia_del_mes} · ${a.porcentaje ? `${a.porcentaje}%` : formatoMoneda(a.monto_fijo)} = ${formatoMoneda(monto)}
+                ${cuenta ? ` · desde ${escapeHtml(cuenta.nombre)}` : ""}
+                ${meta ? ` → ${escapeHtml(meta.nombre)}` : ""}
+              </span>
+            </div>
+            ${ejecucion
+              ? `<span class="badge badge-ok">Ejecutado este mes</span>`
+              : `<button class="btn-primario btn-pequeno" onclick="ejecutarAhorro('${a.id}')">Apartar ahora</button>`
+            }
+            <div class="fila-acciones">
+              <button onclick="abrirModalAhorroProgramado('${a.id}')">Editar</button>
+              <button onclick="eliminarAhorroProgramado('${a.id}')">Eliminar</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
 
   // ---- CATEGORÍAS GRANDES con sus subcategorías ----
   const contenedorCats = document.getElementById("p-categorias-grandes");
@@ -1742,6 +1908,271 @@ async function eliminarMeta(id) {
   if (error) return alert("Error: " + error.message);
   await cargarMetasAhorro();
   renderizarPresupuesto();
+}
+
+// ============================================
+// CUENTAS — gestión completa
+// ============================================
+function abrirModalCuenta(id) {
+  const cuenta = id ? cuentasCache.find((c) => c.id === id) : null;
+  abrirModal(`
+    <h3>${cuenta ? "Editar" : "Nueva"} cuenta</h3>
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="cta-nombre" value="${cuenta ? escapeHtml(cuenta.nombre) : ""}"
+        placeholder="Ej: Nequi, Daviplata, Efectivo">
+    </div>
+    <div class="campo">
+      <label>Tipo</label>
+      <select id="cta-tipo">
+        <option value="banco" ${cuenta?.tipo === "banco" ? "selected" : ""}>🏦 Banco / Débito</option>
+        <option value="billetera_digital" ${cuenta?.tipo === "billetera_digital" ? "selected" : ""}>📱 Billetera digital</option>
+        <option value="efectivo" ${cuenta?.tipo === "efectivo" ? "selected" : ""}>💵 Efectivo</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Saldo inicial</label>
+      <input type="number" id="cta-saldo" min="0" value="${cuenta ? cuenta.saldo_inicial : 0}"
+        placeholder="0">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-cuenta">Guardar</button>
+    </div>
+  `);
+
+  document.getElementById("btn-guardar-cuenta").addEventListener("click", async () => {
+    const payload = {
+      nombre: document.getElementById("cta-nombre").value.trim(),
+      tipo: document.getElementById("cta-tipo").value,
+      saldo_inicial: parseFloat(document.getElementById("cta-saldo").value) || 0,
+      orden: cuenta ? cuenta.orden : cuentasCache.length + 1,
+    };
+    if (!payload.nombre) return alert("Escribe un nombre para la cuenta");
+    let error;
+    if (cuenta) {
+      ({ error } = await db.from("cuentas").update(payload).eq("id", cuenta.id));
+    } else {
+      ({ error } = await db.from("cuentas").insert(payload));
+    }
+    if (error) return alert("Error: " + error.message);
+    cerrarModal();
+    await cargarCuentas();
+    renderizarDashboard();
+    renderizarPresupuesto();
+  });
+}
+
+async function eliminarCuenta(id) {
+  if (!confirm("¿Eliminar esta cuenta? Los movimientos asociados no se borran.")) return;
+  await db.from("cuentas").update({ activa: false }).eq("id", id);
+  await cargarCuentas();
+  renderizarDashboard();
+}
+
+// ============================================
+// PRESUPUESTO DE OCIO — override mensual
+// ============================================
+async function abrirModalOcioManual() {
+  const ingresoPct = presupuestoOcioActual();
+  const mesLabel = new Date().toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+  abrirModal(`
+    <h3>Ajustar presupuesto de Ocio</h3>
+    <p class="fila-detalle" style="margin-bottom:14px;">
+      Mes: ${mesLabel}<br>
+      Presupuesto calculado por porcentaje: <strong>${formatoMoneda(ingresoPct)}</strong><br>
+      <small style="color:var(--color-texto-suave);">Este ajuste solo aplica este mes. El próximo mes vuelve al porcentaje normal.</small>
+    </p>
+    <div class="campo">
+      <label>Monto disponible para Ocio este mes</label>
+      <input type="number" id="ocio-monto" min="0" value="${presupuestoMesCache ? presupuestoMesCache.monto_ocio : ingresoPct.toFixed(0)}" placeholder="0">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      ${presupuestoMesCache ? `<button class="btn-secundario" id="btn-reset-ocio">Restablecer automático</button>` : ""}
+      <button class="btn-primario" id="btn-guardar-ocio">Guardar</button>
+    </div>
+  `);
+
+  document.getElementById("btn-guardar-ocio").addEventListener("click", async () => {
+    const monto = parseFloat(document.getElementById("ocio-monto").value);
+    if (isNaN(monto) || monto < 0) return alert("Ingresa un monto válido");
+    const { error } = await db.from("presupuesto_mes").upsert(
+      { mes: mesActual(), monto_ocio: monto },
+      { onConflict: "user_id,mes" }
+    );
+    if (error) return alert("Error: " + error.message);
+    cerrarModal();
+    await cargarPresupuestoMes();
+    renderizarDashboard();
+    renderizarPresupuesto();
+  });
+
+  const btnReset = document.getElementById("btn-reset-ocio");
+  if (btnReset) {
+    btnReset.addEventListener("click", async () => {
+      if (!presupuestoMesCache) { cerrarModal(); return; }
+      await db.from("presupuesto_mes").delete().eq("id", presupuestoMesCache.id);
+      cerrarModal();
+      await cargarPresupuestoMes();
+      renderizarDashboard();
+      renderizarPresupuesto();
+    });
+  }
+}
+
+// ============================================
+// AHORRO PROGRAMADO — gestión completa
+// ============================================
+function abrirModalAhorroProgramado(id) {
+  const ahorro = id ? ahorrosProgramadosCache.find((a) => a.id === id) : null;
+  abrirModal(`
+    <h3>${ahorro ? "Editar" : "Nuevo"} ahorro programado</h3>
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="ap-nombre" value="${ahorro ? escapeHtml(ahorro.nombre) : "Ahorro mensual"}" placeholder="Ej: Ahorro del día 25">
+    </div>
+    <div class="campo">
+      <label>Cuenta de origen (de dónde sale)</label>
+      <select id="ap-cuenta">
+        ${cuentasCache.map((c) => `<option value="${c.id}" ${ahorro?.cuenta_id === c.id ? "selected" : ""}>${escapeHtml(c.nombre)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="campo">
+      <label>Meta de destino (opcional)</label>
+      <select id="ap-meta">
+        <option value="">Sin meta específica</option>
+        ${metasAhorroCache.map((m) => `<option value="${m.id}" ${ahorro?.meta_id === m.id ? "selected" : ""}>${escapeHtml(m.nombre)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="campo">
+      <label>Día del mes para apartar</label>
+      <input type="number" id="ap-dia" min="1" max="31" value="${ahorro ? ahorro.dia_del_mes : 25}">
+    </div>
+    <div class="campo">
+      <label>¿Porcentaje del ingreso mensual o monto fijo?</label>
+      <div class="toggle-tipo">
+        <button type="button" id="ap-tipo-pct" class="${!ahorro || ahorro.porcentaje ? "activo-ingreso" : ""}">Porcentaje</button>
+        <button type="button" id="ap-tipo-fijo" class="${ahorro?.monto_fijo ? "activo-ingreso" : ""}">Monto fijo</button>
+      </div>
+    </div>
+    <div id="ap-campo-pct" class="campo ${ahorro?.monto_fijo ? "oculto" : ""}">
+      <label>Porcentaje del ingreso</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="number" id="ap-porcentaje" min="0" max="100" value="${ahorro?.porcentaje || 20}" style="width:80px;">
+        <span>%</span>
+        <span id="ap-pct-preview" style="color:var(--color-texto-suave);font-size:13px;"></span>
+      </div>
+    </div>
+    <div id="ap-campo-fijo" class="campo ${!ahorro?.monto_fijo ? "oculto" : ""}">
+      <label>Monto fijo</label>
+      <input type="number" id="ap-monto-fijo" min="0" value="${ahorro?.monto_fijo || ""}">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-ap">Guardar</button>
+    </div>
+  `);
+
+  // Preview del monto calculado
+  function actualizarPreviewPct() {
+    const pct = parseFloat(document.getElementById("ap-porcentaje").value) || 0;
+    const monto = (configuracionCache.ingreso_mensual || 0) * pct / 100;
+    document.getElementById("ap-pct-preview").textContent = `= ${formatoMoneda(monto)}`;
+  }
+  actualizarPreviewPct();
+  document.getElementById("ap-porcentaje").addEventListener("input", actualizarPreviewPct);
+
+  // Toggle porcentaje / fijo
+  document.getElementById("ap-tipo-pct").addEventListener("click", () => {
+    document.getElementById("ap-tipo-pct").classList.add("activo-ingreso");
+    document.getElementById("ap-tipo-fijo").classList.remove("activo-ingreso");
+    document.getElementById("ap-campo-pct").classList.remove("oculto");
+    document.getElementById("ap-campo-fijo").classList.add("oculto");
+  });
+  document.getElementById("ap-tipo-fijo").addEventListener("click", () => {
+    document.getElementById("ap-tipo-fijo").classList.add("activo-ingreso");
+    document.getElementById("ap-tipo-pct").classList.remove("activo-ingreso");
+    document.getElementById("ap-campo-fijo").classList.remove("oculto");
+    document.getElementById("ap-campo-pct").classList.add("oculto");
+  });
+
+  document.getElementById("btn-guardar-ap").addEventListener("click", async () => {
+    const usaPct = document.getElementById("ap-tipo-pct").classList.contains("activo-ingreso");
+    const payload = {
+      nombre: document.getElementById("ap-nombre").value.trim(),
+      cuenta_id: document.getElementById("ap-cuenta").value || null,
+      meta_id: document.getElementById("ap-meta").value || null,
+      dia_del_mes: parseInt(document.getElementById("ap-dia").value) || 25,
+      porcentaje: usaPct ? (parseFloat(document.getElementById("ap-porcentaje").value) || null) : null,
+      monto_fijo: !usaPct ? (parseFloat(document.getElementById("ap-monto-fijo").value) || null) : null,
+    };
+    if (!payload.nombre) return alert("Escribe un nombre");
+    if (!payload.porcentaje && !payload.monto_fijo) return alert("Define un porcentaje o monto fijo");
+    let error;
+    if (ahorro) {
+      ({ error } = await db.from("ahorros_programados").update(payload).eq("id", ahorro.id));
+    } else {
+      ({ error } = await db.from("ahorros_programados").insert(payload));
+    }
+    if (error) return alert("Error: " + error.message);
+    cerrarModal();
+    await Promise.all([cargarAhorrosProgramados(), cargarAhorrosEjecuciones()]);
+    renderizarPresupuesto();
+  });
+}
+
+async function eliminarAhorroProgramado(id) {
+  if (!confirm("¿Eliminar este ahorro programado?")) return;
+  await db.from("ahorros_programados").update({ activo: false }).eq("id", id);
+  await cargarAhorrosProgramados();
+  renderizarPresupuesto();
+}
+
+// Ejecutar un ahorro programado manualmente
+async function ejecutarAhorro(ahorroId) {
+  const ahorro = ahorrosProgramadosCache.find((a) => a.id === ahorroId);
+  if (!ahorro) return;
+  const monto = ahorro.porcentaje
+    ? (configuracionCache.ingreso_mensual || 0) * ahorro.porcentaje / 100
+    : ahorro.monto_fijo;
+  if (!monto || monto <= 0) return alert("El monto calculado es 0. Revisa la configuración.");
+
+  // Crear movimiento de gasto desde la cuenta origen
+  const { data: mov, error: errorMov } = await db.from("movimientos").insert({
+    tipo: "gasto",
+    monto,
+    categoria: "Ahorro",
+    fecha: fechaHoy(),
+    nota: ahorro.nombre,
+    metodo_pago: ahorro.cuenta_id ? `cuenta:${ahorro.cuenta_id}` : "efectivo",
+    cuenta_id: ahorro.cuenta_id || null,
+  }).select().single();
+  if (errorMov) return alert("Error: " + errorMov.message);
+
+  // Si tiene meta, actualizar el valor ahorrado
+  if (ahorro.meta_id) {
+    const meta = metasAhorroCache.find((m) => m.id === ahorro.meta_id);
+    if (meta) {
+      await db.from("metas_ahorro")
+        .update({ valor_ahorrado: meta.valor_ahorrado + monto })
+        .eq("id", meta.id);
+    }
+  }
+
+  // Registrar la ejecución
+  await db.from("ahorros_ejecuciones").upsert(
+    { ahorro_id: ahorroId, mes: mesActual(), monto, movimiento_id: mov.id },
+    { onConflict: "ahorro_id,mes" }
+  );
+
+  await Promise.all([
+    cargarMovimientos(), cargarMetasAhorro(),
+    cargarAhorrosEjecuciones(), cargarCuentas(),
+  ]);
+  renderizarDashboard();
+  renderizarPresupuesto();
+  alert(`Ahorro ejecutado: ${formatoMoneda(monto)} apartados correctamente.`);
 }
 
 // ============================================

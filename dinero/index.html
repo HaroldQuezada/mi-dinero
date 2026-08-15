@@ -61,11 +61,21 @@
           <span class="tarjeta-label">Disponible para gastar</span>
           <span class="tarjeta-valor" id="d-libre">$0</span>
           <span class="tarjeta-sublabel" id="d-libre-label">Presupuesto de Ocio</span>
+          <button class="btn-ajustar-saldo" onclick="abrirModalOcioManual()">✎ Ajustar este mes</button>
         </div>
         <div class="tarjeta">
           <span class="tarjeta-label">Deuda total pendiente</span>
           <span class="tarjeta-valor" id="d-deuda">$0</span>
         </div>
+      </div>
+
+      <!-- Tarjetas por cuenta -->
+      <div class="bloque">
+        <div class="panel-header" style="margin-bottom:10px;">
+          <h2 style="margin:0;">Mis cuentas</h2>
+          <button class="btn-primario btn-pequeno" onclick="abrirModalCuenta()">+ Cuenta</button>
+        </div>
+        <div id="d-cuentas" class="cuentas-grid"></div>
       </div>
 
       <div class="fila-doble">
@@ -182,6 +192,24 @@
           <span class="tarjeta-valor" id="p-disponible">$0</span>
           <span class="tarjeta-sublabel">Presupuesto de Ocio</span>
         </div>
+      </div>
+
+      <!-- Cuentas -->
+      <div class="bloque">
+        <div class="panel-header" style="margin-bottom:12px;">
+          <h2 style="margin:0;">Cuentas</h2>
+          <button class="btn-primario btn-pequeno" onclick="abrirModalCuenta()">+ Cuenta</button>
+        </div>
+        <div id="p-cuentas"></div>
+      </div>
+
+      <!-- Ahorros programados -->
+      <div class="bloque">
+        <div class="panel-header" style="margin-bottom:12px;">
+          <h2 style="margin:0;">Ahorros programados</h2>
+          <button class="btn-primario btn-pequeno" onclick="abrirModalAhorroProgramado()">+ Ahorro</button>
+        </div>
+        <div id="p-ahorros-programados"></div>
       </div>
 
       <!-- Distribución por categoría grande -->
