@@ -17,6 +17,7 @@ let cuentasCache = [];             // Débito, Nequi, Daviplata, Efectivo, etc.
 let presupuestoMesCache = null;    // override manual de ocio del mes actual
 let ahorrosProgramadosCache = [];  // reglas de ahorro configuradas
 let ahorrosEjecucionesCache = [];  // ejecuciones del mes actual
+let categoriaMemoriaCache = {};    // { "Comida": "uuid-ocio" } — memoria de categoría grande por nombre
 
 // ============================================
 // UTILIDADES
@@ -120,6 +121,7 @@ async function cargarTodo() {
     cargarCuentas(),
     cargarPresupuestoMes(),
     cargarAhorrosProgramados(),
+    cargarCategoriaMemoria(),
   ]);
   await Promise.all([cargarSubcategorias(), cargarAhorrosEjecuciones()]);
   renderizarDashboard();
@@ -186,6 +188,23 @@ function corteDelMes(deudaId) {
 // ============================================
 // CUENTAS (Débito, Nequi, Daviplata, Efectivo)
 // ============================================
+async function cargarCategoriaMemoria() {
+  const { data, error } = await db.from("categoria_memoria").select("*");
+  if (error) { console.error(error); return; }
+  categoriaMemoriaCache = {};
+  (data || []).forEach((r) => {
+    categoriaMemoriaCache[r.categoria] = r.categoria_grande_id;
+  });
+}
+
+async function guardarCategoriaMemoria(categoria, categoriaGrandeId) {
+  await db.from("categoria_memoria").upsert(
+    { categoria, categoria_grande_id: categoriaGrandeId },
+    { onConflict: "user_id,categoria" }
+  );
+  categoriaMemoriaCache[categoria] = categoriaGrandeId;
+}
+
 async function cargarCuentas() {
   const { data, error } = await db
     .from("cuentas").select("*").eq("activa", true).order("orden", { ascending: true });
@@ -352,6 +371,18 @@ function abrirModalMovimiento(id) {
         placeholder="Ej: Comida, Cine, Arriendo...">
       <datalist id="dl-categorias"></datalist>
     </div>
+    <div class="campo" id="campo-cat-grande">
+      <label>Tipo de gasto</label>
+      <select id="mov-categoria-grande">
+        <option value="">-- Elige tipo --</option>
+      </select>
+    </div>
+    <div class="campo oculto" id="campo-meta-ahorro">
+      <label>Abonar a meta de ahorro (opcional)</label>
+      <select id="mov-meta-ahorro">
+        <option value="">Sin meta específica</option>
+      </select>
+    </div>
     <div class="campo" id="campo-metodo-pago">
       <label>Cuenta</label>
       <select id="mov-metodo-pago"></select>
@@ -402,6 +433,54 @@ function abrirModalMovimiento(id) {
   }
   actualizarCategorias(tipoInicial);
 
+  // Poblar select de categoría grande y detectar automáticamente desde memoria
+  function poblarCatGrande() {
+    const select = document.getElementById("mov-categoria-grande");
+    select.innerHTML = `<option value="">-- Elige tipo --</option>` +
+      categoriasGrandesCache.map((cg) =>
+        `<option value="${cg.id}">${escapeHtml(cg.nombre)}</option>`
+      ).join("");
+    const catActual = document.getElementById("mov-categoria").value.trim();
+    const idGuardado = movimiento?.categoria_grande_id || categoriaMemoriaCache[catActual];
+    if (idGuardado) select.value = idGuardado;
+    actualizarVisibilidadMeta();
+  }
+  poblarCatGrande();
+
+  function actualizarVisibilidadCatGrande(tipo) {
+    document.getElementById("campo-cat-grande").classList.toggle("oculto", tipo === "ingreso");
+    document.getElementById("campo-meta-ahorro").classList.toggle("oculto", tipo === "ingreso");
+    if (tipo !== "ingreso") actualizarVisibilidadMeta();
+  }
+  actualizarVisibilidadCatGrande(tipoInicial);
+
+  function actualizarVisibilidadMeta() {
+    const cgId = document.getElementById("mov-categoria-grande").value;
+    const catGrande = categoriasGrandesCache.find((c) => c.id === cgId);
+    const esAhorro = catGrande?.nombre.toLowerCase().includes("ahorro");
+    document.getElementById("campo-meta-ahorro").classList.toggle("oculto", !esAhorro);
+    if (esAhorro) {
+      const selectMeta = document.getElementById("mov-meta-ahorro");
+      selectMeta.innerHTML = `<option value="">Sin meta específica</option>` +
+        metasAhorroCache.map((m) =>
+          `<option value="${m.id}">${escapeHtml(m.nombre)}</option>`
+        ).join("");
+      if (movimiento?.meta_id) selectMeta.value = movimiento.meta_id;
+    }
+  }
+
+  document.getElementById("mov-categoria-grande").addEventListener("change", actualizarVisibilidadMeta);
+
+  // Al escribir una categoría, auto-seleccionar la grande desde memoria
+  document.getElementById("mov-categoria").addEventListener("input", () => {
+    const val = document.getElementById("mov-categoria").value.trim();
+    const idMemoria = categoriaMemoriaCache[val];
+    if (idMemoria) {
+      document.getElementById("mov-categoria-grande").value = idMemoria;
+      actualizarVisibilidadMeta();
+    }
+  });
+
   function actualizarMetodosPago() {
     const select = document.getElementById("mov-metodo-pago");
     const tarjetas = deudasCache.filter((d) => d.tipo === "tarjeta_credito");
@@ -443,6 +522,13 @@ function abrirModalMovimiento(id) {
     const tipo = document.getElementById("mov-tipo").value;
     const metodoPago = document.getElementById("mov-metodo-pago").value;
     const cuentaId = metodoPago.startsWith("cuenta:") ? metodoPago.split(":")[1] : null;
+    const categoriaGrandeId = tipo === "gasto"
+      ? (document.getElementById("mov-categoria-grande").value || null)
+      : null;
+    const metaId = tipo === "gasto" && categoriaGrandeId
+      ? (document.getElementById("mov-meta-ahorro")?.value || null)
+      : null;
+
     const payload = {
       tipo,
       monto: parseFloat(document.getElementById("mov-monto").value),
@@ -451,17 +537,17 @@ function abrirModalMovimiento(id) {
       nota: document.getElementById("mov-nota").value.trim() || null,
       metodo_pago: metodoPago,
       cuenta_id: cuentaId,
+      categoria_grande_id: categoriaGrandeId,
     };
     if (!payload.monto || payload.monto <= 0) return alert("Ingresa un monto válido");
     if (!payload.categoria) return alert("Ingresa una categoría");
 
-    // Si se está editando, primero revertimos el efecto que el movimiento anterior
-    // tuvo sobre el saldo de una tarjeta de crédito (si aplicaba)
+    // Si se edita, revertir efecto sobre tarjeta de crédito anterior
     if (movimiento && movimiento.metodo_pago && movimiento.metodo_pago.startsWith("credito:")) {
       await ajustarSaldoTarjeta(movimiento.metodo_pago, -movimiento.monto);
     }
 
-    let error;
+    let error, data;
     if (movimiento) {
       ({ error } = await db.from("movimientos").update(payload).eq("id", movimiento.id));
     } else {
@@ -469,14 +555,30 @@ function abrirModalMovimiento(id) {
     }
     if (error) return alert("Error: " + error.message);
 
-    // Si el nuevo método de pago es una tarjeta de crédito, su gasto AUMENTA el saldo que se debe
+    // Si el pago fue con tarjeta de crédito, sube el saldo de la deuda
     if (payload.metodo_pago.startsWith("credito:")) {
       await ajustarSaldoTarjeta(payload.metodo_pago, payload.monto);
     }
 
+    // Guardar en memoria: esta categoría pertenece a esta categoría grande
+    if (payload.categoria && categoriaGrandeId) {
+      await guardarCategoriaMemoria(payload.categoria, categoriaGrandeId);
+    }
+
+    // Si es Ahorro y tiene meta, abonar a esa meta
+    if (metaId && tipo === "gasto") {
+      const meta = metasAhorroCache.find((m) => m.id === metaId);
+      if (meta) {
+        await db.from("metas_ahorro")
+          .update({ valor_ahorrado: meta.valor_ahorrado + payload.monto })
+          .eq("id", metaId);
+      }
+    }
+
     cerrarModal();
-    await Promise.all([cargarMovimientos(), cargarDeudas()]);
+    await Promise.all([cargarMovimientos(), cargarDeudas(), cargarMetasAhorro(), cargarCuentas()]);
     renderizarDashboard();
+    renderizarPresupuesto();
   });
 }
 
@@ -817,14 +919,24 @@ function registrarPagoDeuda(id) {
     : deuda.pago_mensual_planeado;
   const saldoActual = esTarjeta ? deuda.saldo_tarjeta : (deuda.monto_total - deuda.pagado_acumulado);
 
+  const opcionesCuentas = cuentasCache.length > 0
+    ? cuentasCache.map((c) => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join("")
+    : `<option value="">Sin cuentas configuradas</option>`;
+
   abrirModal(`
     <h3>Pagar ${esTarjeta ? "corte de " : ""}${escapeHtml(deuda.nombre)}</h3>
     <p class="fila-detalle" style="margin-bottom:14px;">
-      ${esTarjeta ? `Monto del corte: <strong>${formatoMoneda(montoSugerido)}</strong>` : `Saldo: ${formatoMoneda(saldoActual)}`}
+      ${esTarjeta
+        ? `Monto del corte: <strong>${formatoMoneda(montoSugerido)}</strong>`
+        : `Saldo: ${formatoMoneda(saldoActual)}`}
     </p>
     <div class="campo">
       <label>Monto a pagar</label>
       <input type="number" id="pago-monto" min="0" value="${montoSugerido}" placeholder="0">
+    </div>
+    <div class="campo">
+      <label>Pagar desde</label>
+      <select id="pago-cuenta">${opcionesCuentas}</select>
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -835,6 +947,8 @@ function registrarPagoDeuda(id) {
   document.getElementById("btn-confirmar-pago").addEventListener("click", async () => {
     const monto = parseFloat(document.getElementById("pago-monto").value);
     if (!monto || monto <= 0) return alert("Ingresa un monto válido");
+    const cuentaId = document.getElementById("pago-cuenta").value || null;
+    const metodoPago = cuentaId ? `cuenta:${cuentaId}` : "efectivo";
 
     // Actualiza el saldo de la deuda según su tipo
     const { error: errorDeuda } = esTarjeta
@@ -842,24 +956,23 @@ function registrarPagoDeuda(id) {
       : await db.from("deudas").update({ pagado_acumulado: deuda.pagado_acumulado + monto }).eq("id", deuda.id);
     if (errorDeuda) return alert("Error: " + errorDeuda.message);
 
-    // Crea movimiento de gasto en el historial
+    // Crea movimiento de gasto en el historial (resta de la cuenta seleccionada)
     const { data: mov, error: errorMov } = await db.from("movimientos").insert({
       tipo: "gasto",
       monto,
       categoria: "Pago de deuda",
       fecha: fechaHoy(),
       nota: `Pago${esTarjeta ? " corte" : ""}: ${deuda.nombre}`,
-      metodo_pago: "efectivo",
+      metodo_pago: metodoPago,
+      cuenta_id: cuentaId,
     }).select().single();
     if (errorMov) return alert("Error: " + errorMov.message);
 
     if (esTarjeta) {
-      // Marca el corte del mes como pagado
       if (corte) {
         await db.from("tarjeta_cortes").update({ pagado: true, movimiento_id: mov.id }).eq("id", corte.id);
       }
     } else {
-      // Marca la deuda como pagada este mes (deudas_pagos)
       await db.from("deudas_pagos").upsert({
         deuda_id: deuda.id,
         mes: mesActual(),
@@ -868,7 +981,7 @@ function registrarPagoDeuda(id) {
     }
 
     cerrarModal();
-    await Promise.all([cargarDeudas(), cargarMovimientos(), cargarCortesDelMes()]);
+    await Promise.all([cargarDeudas(), cargarMovimientos(), cargarCortesDelMes(), cargarCuentas()]);
     renderizarDashboard();
     renderizarPresupuesto();
   });
@@ -936,26 +1049,33 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
   const mes = mesActual();
 
   if (marcarComoPagado) {
-    // Crear el movimiento de gasto automáticamente
-    const { data: movimiento, error: errorMov } = await db
-      .from("movimientos")
-      .insert({
-        tipo: "gasto",
-        monto: gasto.monto,
-        categoria: gasto.categoria,
-        fecha: fechaHoy(),
-        nota: `Pago automático: ${gasto.nombre}`,
-      })
-      .select()
-      .single();
-    if (errorMov) return alert("Error: " + errorMov.message);
+    // Si hay cuentas configuradas, preguntar desde cuál se paga
+    if (cuentasCache.length > 0) {
+      abrirModal(`
+        <h3>Pagar: ${escapeHtml(gasto.nombre)}</h3>
+        <p class="fila-detalle" style="margin-bottom:14px;">${formatoMoneda(gasto.monto)}</p>
+        <div class="campo">
+          <label>Pagar desde</label>
+          <select id="gf-pago-cuenta">
+            ${cuentasCache.map((c) => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="modal-acciones">
+          <button class="btn-secundario" onclick="cerrarModal(); renderizarGastosFijos();">Cancelar</button>
+          <button class="btn-primario" id="btn-confirmar-gf">Confirmar</button>
+        </div>
+      `);
 
-    const { error: errorPago } = await db.from("gastos_fijos_pagos").insert({
-      gasto_fijo_id: gastoFijoId,
-      mes,
-      movimiento_id: movimiento.id,
-    });
-    if (errorPago) return alert("Error: " + errorPago.message);
+      document.getElementById("btn-confirmar-gf").addEventListener("click", async () => {
+        const cuentaId = document.getElementById("gf-pago-cuenta").value;
+        const metodoPago = cuentaId ? `cuenta:${cuentaId}` : "efectivo";
+        cerrarModal();
+        await _ejecutarPagoGastoFijo(gasto, gastoFijoId, mes, metodoPago, cuentaId);
+      });
+      return; // espera la confirmación del modal
+    }
+    // Sin cuentas: paga directamente
+    await _ejecutarPagoGastoFijo(gasto, gastoFijoId, mes, "efectivo", null);
   } else {
     // Desmarcar: eliminar el registro de pago y su movimiento asociado
     const pago = pagosDelMesCache.find((p) => p.gasto_fijo_id === gastoFijoId);
@@ -965,9 +1085,31 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
       }
       await db.from("gastos_fijos_pagos").delete().eq("id", pago.id);
     }
+    await Promise.all([cargarGastosFijos(), cargarMovimientos(), cargarCuentas()]);
+    renderizarDashboard();
   }
+}
 
-  await Promise.all([cargarGastosFijos(), cargarMovimientos()]);
+async function _ejecutarPagoGastoFijo(gasto, gastoFijoId, mes, metodoPago, cuentaId) {
+  const { data: movimiento, error: errorMov } = await db.from("movimientos").insert({
+    tipo: "gasto",
+    monto: gasto.monto,
+    categoria: gasto.categoria,
+    fecha: fechaHoy(),
+    nota: `Pago: ${gasto.nombre}`,
+    metodo_pago: metodoPago,
+    cuenta_id: cuentaId,
+  }).select().single();
+  if (errorMov) return alert("Error: " + errorMov.message);
+
+  const { error: errorPago } = await db.from("gastos_fijos_pagos").insert({
+    gasto_fijo_id: gastoFijoId,
+    mes,
+    movimiento_id: movimiento.id,
+  });
+  if (errorPago) return alert("Error: " + errorPago.message);
+
+  await Promise.all([cargarGastosFijos(), cargarMovimientos(), cargarCuentas()]);
   renderizarDashboard();
 }
 
@@ -1084,13 +1226,12 @@ function renderizarDashboard() {
   let dineroLibre = 0;
   if (presOcio > 0) {
     const catOcio = categoriasGrandesCache.find((c) => c.nombre.toLowerCase().includes("ocio"));
-    const subsOcio = new Set(catOcio
-      ? subcategoriasCache.filter((s) => s.categoria_grande_id === catOcio.id).map((s) => s.nombre)
-      : []);
-    if (catOcio) subsOcio.add(catOcio.nombre);
-    const gastadoOcio = movimientosDelMes
-      .filter((m) => m.tipo === "gasto" && subsOcio.has(m.categoria))
-      .reduce((acc, m) => acc + m.monto, 0);
+    const gastadoOcio = catOcio
+      ? movimientosDelMes
+          .filter((m) => m.tipo === "gasto" &&
+            (m.categoria_grande_id === catOcio.id || categoriaMemoriaCache[m.categoria] === catOcio.id))
+          .reduce((acc, m) => acc + m.monto, 0)
+      : 0;
     dineroLibre = presOcio - gastadoOcio;
   } else {
     dineroLibre = balance - comprometido;
@@ -1427,10 +1568,19 @@ function renderizarPresupuesto() {
   const ingreso = configuracionCache.ingreso_mensual || 0;
   const mes = mesActual();
 
-  // Calcular gastos del mes actual por subcategoría
+  // Calcular gastos del mes actual agrupados por categoría grande (usando el campo directo)
   const gastosDelMes = movimientosCache.filter(
     (m) => m.tipo === "gasto" && m.fecha.slice(0, 7) === mes
   );
+  // gastosPorCatGrande: { "uuid-cg": totalMonto }
+  const gastosPorCatGrande = {};
+  gastosDelMes.forEach((m) => {
+    const cgId = m.categoria_grande_id || categoriaMemoriaCache[m.categoria];
+    if (cgId) {
+      gastosPorCatGrande[cgId] = (gastosPorCatGrande[cgId] || 0) + m.monto;
+    }
+  });
+  // También mantener por nombre de categoría para la gráfica de pastel
   const gastosPorCategoria = {};
   gastosDelMes.forEach((m) => {
     gastosPorCategoria[m.categoria] = (gastosPorCategoria[m.categoria] || 0) + m.monto;
@@ -1455,13 +1605,14 @@ function renderizarPresupuesto() {
   const catOcio = categoriasGrandesCache.find((c) => c.nombre.toLowerCase().includes("ocio"));
   let disponible = 0;
   if (catOcio && ingreso > 0) {
-    const presupuestoOcio = ingreso * (catOcio.porcentaje / 100);
-    const subsOcio = new Set(
-      subcategoriasCache.filter((s) => s.categoria_grande_id === catOcio.id).map((s) => s.nombre)
-    );
-    subsOcio.add(catOcio.nombre);
+    const presupuestoOcio = presupuestoMesCache
+      ? presupuestoMesCache.monto_ocio
+      : ingreso * (catOcio.porcentaje / 100);
     const gastadoOcio = gastosDelMes
-      .filter((m) => subsOcio.has(m.categoria))
+      .filter((m) =>
+        m.categoria_grande_id === catOcio.id ||
+        categoriaMemoriaCache[m.categoria] === catOcio.id
+      )
       .reduce((acc, m) => acc + m.monto, 0);
     disponible = presupuestoOcio - gastadoOcio;
   } else {
@@ -1557,12 +1708,8 @@ function renderizarPresupuesto() {
       const presupuesto = ingreso * (cg.porcentaje / 100);
       const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
 
-      // Gastos de este mes que pertenecen a subcategorías de esta categoría grande
-      const nombresSubcats = new Set(subs.map((s) => s.nombre));
-      nombresSubcats.add(cg.nombre); // también el nombre de la categoría grande en sí
-      const gastado = Object.entries(gastosPorCategoria)
-        .filter(([cat]) => nombresSubcats.has(cat))
-        .reduce((acc, [, monto]) => acc + monto, 0);
+      // Gastos de este mes que pertenecen a esta categoría grande (por campo directo o memoria)
+      const gastado = gastosPorCatGrande[cg.id] || 0;
 
       const disponibleCat = presupuesto - gastado;
       const porcentajeUsado = presupuesto > 0 ? Math.min((gastado / presupuesto) * 100, 100) : 0;
@@ -1623,11 +1770,7 @@ function renderizarPresupuesto() {
       contenedorDash.innerHTML = categoriasGrandesCache.map((cg) => {
         const presupuesto = ingreso * (cg.porcentaje / 100);
         const subs = subcategoriasCache.filter((s) => s.categoria_grande_id === cg.id);
-        const nombresSubcats = new Set(subs.map((s) => s.nombre));
-        nombresSubcats.add(cg.nombre);
-        const gastado = Object.entries(gastosPorCategoria)
-          .filter(([cat]) => nombresSubcats.has(cat))
-          .reduce((acc, [, monto]) => acc + monto, 0);
+        const gastado = gastosPorCatGrande[cg.id] || 0;
         const pct = presupuesto > 0 ? Math.min((gastado / presupuesto) * 100, 100) : 0;
         let estadoClase = gastado > presupuesto ? "barra-excedido" : pct >= 80 ? "barra-advertencia" : "barra-ok";
         return `
