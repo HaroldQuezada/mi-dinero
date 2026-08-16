@@ -1027,7 +1027,7 @@ function renderizarGastosFijos() {
   contenedor.innerHTML = gastosFijosCache.map((g) => {
     const pagado = estaPagadoEsteMes(g.id);
     return `
-      <div class="fila">
+      <div class="fila fila-con-badge">
         <input type="checkbox" class="checkbox-pagado" ${pagado ? "checked" : ""}
           onchange="togglePagoGastoFijo('${g.id}', this.checked)">
         <div class="fila-info">
@@ -1293,7 +1293,7 @@ function renderizarDashboard() {
     contenedorGF.innerHTML = gastosFijosCache.map((g) => {
       const pagado = estaPagadoEsteMes(g.id);
       return `
-        <div class="fila">
+        <div class="fila fila-con-badge" style="grid-template-columns:auto 1fr 100px 70px;">
           <input type="checkbox" class="checkbox-pagado" ${pagado ? "checked" : ""}
             onchange="togglePagoGastoFijo('${g.id}', this.checked)">
           <div class="fila-info">

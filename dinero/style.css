@@ -209,12 +209,18 @@
 ============================================ */
 .lista-simple .fila,
 .lista-tabla .fila {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 110px 100px;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 0;
   border-bottom: 1px solid var(--color-borde);
-  gap: 10px;
+  gap: 8px;
+}
+
+/* Filas con badge extra (gastos fijos, deudas) */
+.lista-simple .fila.fila-con-badge,
+.lista-tabla .fila.fila-con-badge {
+  grid-template-columns: auto 1fr 100px 70px 100px;
 }
 
 .lista-simple .fila:last-child,
@@ -232,23 +238,31 @@
 .fila-titulo {
   font-weight: 600;
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fila-detalle {
   font-size: 12px;
   color: var(--color-texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fila-monto {
   font-weight: 700;
   font-size: 14px;
   white-space: nowrap;
+  text-align: right;
 }
 
 .fila-acciones {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .fila-acciones button {
@@ -259,6 +273,13 @@
 
 .fila-acciones button:hover {
   color: var(--color-primario);
+}
+
+@media (max-width: 600px) {
+  .lista-tabla .fila {
+    grid-template-columns: 1fr 90px 80px;
+  }
+  .fila-acciones button { font-size: 11px; padding: 3px 4px; }
 }
 
 .vacio {
