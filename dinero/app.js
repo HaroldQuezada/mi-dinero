@@ -270,7 +270,8 @@ async function cargarMovimientos() {
   const { data, error } = await db
     .from("movimientos")
     .select("*")
-    .order("fecha", { ascending: false });
+    .order("fecha", { ascending: false })
+    .order("created_at", { ascending: false });
   if (error) { console.error(error); return; }
   movimientosCache = data;
   renderizarMovimientos();
