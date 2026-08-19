@@ -213,6 +213,7 @@ async function cargarCuentas() {
 }
 
 function saldoCuenta(cuentaId) {
+  // Siempre lee de cuentasCache actualizada (no de copia capturada)
   const cuenta = cuentasCache.find((c) => c.id === cuentaId);
   if (!cuenta) return 0;
   const movs = movimientosCache.filter((m) => m.cuenta_id === cuentaId);
@@ -1269,7 +1270,15 @@ function renderizarDashboard() {
         </p>`;
     } else {
       const iconoTipo = { banco: "🏦", billetera_digital: "📱", efectivo: "💵" };
-      contenedorCuentas.innerHTML = cuentasCache.map((c) => {
+      const sumaCuentas = cuentasCache.reduce((acc, c) => acc + saldoCuenta(c.id), 0);
+      // Movimientos sin cuenta asignada (registrados antes de crear cuentas)
+      const sinCuenta = movimientosCache
+        .filter((m) => !m.cuenta_id)
+        .reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0);
+      const avisoPendiente = sinCuenta !== 0
+        ? `<p class="aviso-sin-cuenta">⚠ Hay movimientos sin cuenta asignada por ${formatoMoneda(Math.abs(sinCuenta))} que no se reflejan en los saldos. Edítalos y asígnales una cuenta.</p>`
+        : "";
+      contenedorCuentas.innerHTML = avisoPendiente + cuentasCache.map((c) => {
         const saldo = saldoCuenta(c.id);
         return `
           <div class="tarjeta-cuenta">
@@ -2101,7 +2110,7 @@ function abrirModalCuenta(id) {
     }
     if (error) return alert("Error: " + error.message);
     cerrarModal();
-    await cargarCuentas();
+    await Promise.all([cargarCuentas(), cargarMovimientos()]);
     renderizarDashboard();
     renderizarPresupuesto();
   });
@@ -2110,8 +2119,9 @@ function abrirModalCuenta(id) {
 async function eliminarCuenta(id) {
   if (!confirm("¿Eliminar esta cuenta? Los movimientos asociados no se borran.")) return;
   await db.from("cuentas").update({ activa: false }).eq("id", id);
-  await cargarCuentas();
+  await Promise.all([cargarCuentas(), cargarMovimientos()]);
   renderizarDashboard();
+  renderizarPresupuesto();
 }
 
 // ============================================

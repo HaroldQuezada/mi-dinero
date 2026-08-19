@@ -808,3 +808,15 @@
 .cuenta-icono { font-size: 20px; }
 .cuenta-nombre { font-size: 12px; color: var(--color-texto-suave); font-weight: 600; }
 .cuenta-saldo { font-size: 16px; font-weight: 700; }
+
+/* Aviso de movimientos sin cuenta asignada */
+.aviso-sin-cuenta {
+  font-size: 12px;
+  color: var(--color-advertencia);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid var(--color-advertencia);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  grid-column: 1 / -1;
+}
