@@ -111,7 +111,10 @@
       </div>
 
       <div class="bloque">
-        <h2>Metas de ahorro</h2>
+        <div class="panel-header" style="margin-bottom:8px;">
+          <h2 style="margin:0;">Metas de ahorro</h2>
+          <button class="btn-link" style="width:auto;display:inline;" onclick="document.querySelector('[data-tab=presupuesto]').click()">Ver todas →</button>
+        </div>
         <div id="d-metas-ahorro"></div>
       </div>
 
@@ -134,7 +137,10 @@
     <section id="panel-movimientos" class="panel oculto">
       <div class="panel-header">
         <h2>Movimientos</h2>
-        <button class="btn-primario" id="btn-nuevo-movimiento">+ Agregar</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-secundario btn-pequeno" onclick="exportarCSV()">⬇ Exportar CSV</button>
+          <button class="btn-primario" id="btn-nuevo-movimiento">+ Agregar</button>
+        </div>
       </div>
 
       <div class="filtro-mes">

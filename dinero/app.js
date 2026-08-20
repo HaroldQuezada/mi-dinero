@@ -1270,15 +1270,7 @@ function renderizarDashboard() {
         </p>`;
     } else {
       const iconoTipo = { banco: "🏦", billetera_digital: "📱", efectivo: "💵" };
-      const sumaCuentas = cuentasCache.reduce((acc, c) => acc + saldoCuenta(c.id), 0);
-      // Movimientos sin cuenta asignada (registrados antes de crear cuentas)
-      const sinCuenta = movimientosCache
-        .filter((m) => !m.cuenta_id)
-        .reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0);
-      const avisoPendiente = sinCuenta !== 0
-        ? `<p class="aviso-sin-cuenta">⚠ Hay movimientos sin cuenta asignada por ${formatoMoneda(Math.abs(sinCuenta))} que no se reflejan en los saldos. Edítalos y asígnales una cuenta.</p>`
-        : "";
-      contenedorCuentas.innerHTML = avisoPendiente + cuentasCache.map((c) => {
+      contenedorCuentas.innerHTML = cuentasCache.map((c) => {
         const saldo = saldoCuenta(c.id);
         return `
           <div class="tarjeta-cuenta">
@@ -1803,44 +1795,63 @@ function renderizarPresupuesto() {
 }
 
 function renderizarMetasAhorro() {
-  const ids = ["p-metas-ahorro", "d-metas-ahorro"];
-  ids.forEach((id) => {
-    const contenedor = document.getElementById(id);
-    if (!contenedor) return;
+  // Dashboard: resumen compacto sin botones
+  const dash = document.getElementById("d-metas-ahorro");
+  if (dash) {
     if (metasAhorroCache.length === 0) {
-      contenedor.innerHTML = '<p class="vacio">No tienes metas de ahorro creadas</p>';
-      return;
-    }
-    contenedor.innerHTML = metasAhorroCache.map((m) => {
-      const pct = m.valor_objetivo > 0
-        ? Math.min((m.valor_ahorrado / m.valor_objetivo) * 100, 100)
-        : 0;
-      const falta = Math.max(m.valor_objetivo - m.valor_ahorrado, 0);
-      const fechaStr = m.fecha_objetivo
-        ? ` · Meta: ${formatoFecha(m.fecha_objetivo)}`
-        : "";
-      return `
-        <div class="bloque-meta-ahorro">
-          <div class="meta-header">
-            <span class="meta-nombre">${escapeHtml(m.nombre)}</span>
-            <div class="fila-acciones">
-              <button onclick="abrirModalMeta('${m.id}')">Editar</button>
-              <button onclick="eliminarMeta('${m.id}')">Eliminar</button>
+      dash.innerHTML = '<p class="vacio">No tienes metas creadas</p>';
+    } else {
+      dash.innerHTML = metasAhorroCache.map((m) => {
+        const pct = m.valor_objetivo > 0
+          ? Math.min((m.valor_ahorrado / m.valor_objetivo) * 100, 100) : 0;
+        return `
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+              <span style="font-weight:600;">${escapeHtml(m.nombre)}</span>
+              <span>${formatoMoneda(m.valor_ahorrado)} / ${formatoMoneda(m.valor_objetivo)}</span>
             </div>
-          </div>
-          <div class="meta-cifras">
-            <div><span>Objetivo</span>${formatoMoneda(m.valor_objetivo)}</div>
-            <div><span>Ahorrado</span>${formatoMoneda(m.valor_ahorrado)}</div>
-            <div><span>Falta</span>${formatoMoneda(falta)}</div>
-          </div>
-          <div class="barra-progreso">
-            <div class="barra-progreso-fill barra-ok" style="width:${pct}%"></div>
-          </div>
-          <p style="font-size:11px;color:var(--color-texto-suave);margin-top:4px;">${pct.toFixed(0)}% completado${fechaStr}</p>
-        </div>
-      `;
-    }).join("");
-  });
+            <div class="barra-progreso">
+              <div class="barra-progreso-fill barra-ok" style="width:${pct}%"></div>
+            </div>
+            <p style="font-size:11px;color:var(--color-texto-suave);margin-top:2px;">${pct.toFixed(0)}% · Falta ${formatoMoneda(Math.max(m.valor_objetivo - m.valor_ahorrado, 0))}</p>
+          </div>`;
+      }).join("");
+    }
+  }
+
+  // Presupuesto: vista completa con editar/eliminar
+  const pres = document.getElementById("p-metas-ahorro");
+  if (pres) {
+    if (metasAhorroCache.length === 0) {
+      pres.innerHTML = '<p class="vacio">No tienes metas de ahorro creadas</p>';
+    } else {
+      pres.innerHTML = metasAhorroCache.map((m) => {
+        const pct = m.valor_objetivo > 0
+          ? Math.min((m.valor_ahorrado / m.valor_objetivo) * 100, 100) : 0;
+        const falta = Math.max(m.valor_objetivo - m.valor_ahorrado, 0);
+        const fechaStr = m.fecha_objetivo ? ` · Meta: ${formatoFecha(m.fecha_objetivo)}` : "";
+        return `
+          <div class="bloque-meta-ahorro">
+            <div class="meta-header">
+              <span class="meta-nombre">${escapeHtml(m.nombre)}</span>
+              <div class="fila-acciones">
+                <button onclick="abrirModalMeta('${m.id}')">Editar</button>
+                <button onclick="eliminarMeta('${m.id}')">Eliminar</button>
+              </div>
+            </div>
+            <div class="meta-cifras">
+              <div><span>Objetivo</span>${formatoMoneda(m.valor_objetivo)}</div>
+              <div><span>Ahorrado</span>${formatoMoneda(m.valor_ahorrado)}</div>
+              <div><span>Falta</span>${formatoMoneda(falta)}</div>
+            </div>
+            <div class="barra-progreso">
+              <div class="barra-progreso-fill barra-ok" style="width:${pct}%"></div>
+            </div>
+            <p style="font-size:11px;color:var(--color-texto-suave);margin-top:4px;">${pct.toFixed(0)}% completado${fechaStr}</p>
+          </div>`;
+      }).join("");
+    }
+  }
 }
 
 // ============================================
@@ -2327,6 +2338,102 @@ async function ejecutarAhorro(ahorroId) {
   renderizarDashboard();
   renderizarPresupuesto();
   alert(`Ahorro ejecutado: ${formatoMoneda(monto)} apartados correctamente.`);
+}
+
+// ============================================
+// EXPORTACIÓN CSV
+// ============================================
+function exportarCSV() {
+  const ahora = new Date().toISOString().slice(0, 10);
+
+  // Hoja 1: Movimientos
+  const filasMovimientos = [
+    ["Fecha", "Tipo", "Categoría", "Tipo de gasto", "Cuenta", "Método de pago", "Monto", "Nota"],
+    ...movimientosCache.map((m) => {
+      const catGrande = categoriasGrandesCache.find((c) => c.id === m.categoria_grande_id);
+      const cuenta = cuentasCache.find((c) => c.id === m.cuenta_id);
+      return [
+        m.fecha,
+        m.tipo,
+        m.categoria,
+        catGrande ? catGrande.nombre : "",
+        cuenta ? cuenta.nombre : descripcionMetodoPago(m.metodo_pago),
+        m.metodo_pago || "",
+        m.tipo === "ingreso" ? m.monto : -m.monto,
+        m.nota || "",
+      ];
+    }),
+  ];
+
+  // Hoja 2: Cuentas y saldos
+  const filasCuentas = [
+    ["Cuenta", "Tipo", "Saldo inicial", "Saldo actual"],
+    ...cuentasCache.map((c) => [
+      c.nombre,
+      c.tipo,
+      c.saldo_inicial,
+      saldoCuenta(c.id),
+    ]),
+  ];
+
+  // Hoja 3: Deudas
+  const filasDeudas = [
+    ["Nombre", "Tipo", "Monto total", "Pagado", "Saldo restante", "Pago mensual"],
+    ...deudasCache.map((d) => [
+      d.nombre,
+      d.tipo,
+      d.tipo === "tarjeta_credito" ? "" : d.monto_total,
+      d.tipo === "tarjeta_credito" ? "" : d.pagado_acumulado,
+      d.tipo === "tarjeta_credito" ? d.saldo_tarjeta : Math.max(d.monto_total - d.pagado_acumulado, 0),
+      d.pago_mensual_planeado,
+    ]),
+  ];
+
+  // Hoja 4: Metas de ahorro
+  const filasMetas = [
+    ["Meta", "Objetivo", "Ahorrado", "Falta", "% completado", "Fecha objetivo"],
+    ...metasAhorroCache.map((m) => [
+      m.nombre,
+      m.valor_objetivo,
+      m.valor_ahorrado,
+      Math.max(m.valor_objetivo - m.valor_ahorrado, 0),
+      m.valor_objetivo > 0 ? ((m.valor_ahorrado / m.valor_objetivo) * 100).toFixed(1) + "%" : "0%",
+      m.fecha_objetivo || "",
+    ]),
+  ];
+
+  // Construir el contenido CSV con separadores de sección
+  function filasACSV(filas) {
+    return filas.map((fila) =>
+      fila.map((celda) => {
+        const str = String(celda === null || celda === undefined ? "" : celda);
+        return str.includes(",") || str.includes('"') || str.includes("\n")
+          ? `"${str.replace(/"/g, '""')}"` : str;
+      }).join(",")
+    ).join("\n");
+  }
+
+  const contenido = [
+    "=== MOVIMIENTOS ===",
+    filasACSV(filasMovimientos),
+    "",
+    "=== CUENTAS ===",
+    filasACSV(filasCuentas),
+    "",
+    "=== DEUDAS ===",
+    filasACSV(filasDeudas),
+    "",
+    "=== METAS DE AHORRO ===",
+    filasACSV(filasMetas),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mi-dinero-${ahora}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ============================================
