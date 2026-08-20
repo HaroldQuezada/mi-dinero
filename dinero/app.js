@@ -1643,7 +1643,7 @@ function renderizarPresupuesto() {
           <div class="fila">
             <div class="fila-info">
               <span class="fila-titulo">${iconoTipo[c.tipo] || "💰"} ${escapeHtml(c.nombre)}</span>
-              <span class="fila-detalle">Saldo inicial: ${formatoMoneda(c.saldo_inicial)}</span>
+              <span class="fila-detalle">${c.tipo === "banco" ? "🏦 Banco" : c.tipo === "billetera_digital" ? "📱 Billetera digital" : "💵 Efectivo"}</span>
             </div>
             <span class="fila-monto ${saldo < 0 ? "negativo" : "positivo"}">${formatoMoneda(saldo)}</span>
             <div class="fila-acciones">
@@ -2079,6 +2079,15 @@ async function eliminarMeta(id) {
 // ============================================
 function abrirModalCuenta(id) {
   const cuenta = id ? cuentasCache.find((c) => c.id === id) : null;
+  // Para edición: mostrar saldo actual (lo que el usuario ve y quiere corregir)
+  // Para nueva cuenta: mostrar 0
+  const saldoActual = cuenta ? saldoCuenta(cuenta.id) : 0;
+  const delta = cuenta
+    ? movimientosCache
+        .filter((m) => m.cuenta_id === cuenta.id)
+        .reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0)
+    : 0;
+
   abrirModal(`
     <h3>${cuenta ? "Editar" : "Nueva"} cuenta</h3>
     <div class="campo">
@@ -2095,9 +2104,9 @@ function abrirModalCuenta(id) {
       </select>
     </div>
     <div class="campo">
-      <label>Saldo inicial</label>
-      <input type="number" id="cta-saldo" min="0" value="${cuenta ? cuenta.saldo_inicial : 0}"
-        placeholder="0">
+      <label>${cuenta ? "Saldo actual real (corrígelo si no cuadra)" : "Saldo inicial"}</label>
+      <input type="number" id="cta-saldo" value="${saldoActual}" placeholder="0">
+      ${cuenta && delta !== 0 ? `<small style="color:var(--color-texto-suave);font-size:11px;">Movimientos registrados: ${formatoMoneda(delta)}</small>` : ""}
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -2106,10 +2115,13 @@ function abrirModalCuenta(id) {
   `);
 
   document.getElementById("btn-guardar-cuenta").addEventListener("click", async () => {
+    const saldoDeseado = parseFloat(document.getElementById("cta-saldo").value) || 0;
+    // Recalcular saldo_inicial para que saldo_inicial + delta = saldoDeseado
+    const nuevoSaldoInicial = saldoDeseado - delta;
     const payload = {
       nombre: document.getElementById("cta-nombre").value.trim(),
       tipo: document.getElementById("cta-tipo").value,
-      saldo_inicial: parseFloat(document.getElementById("cta-saldo").value) || 0,
+      saldo_inicial: nuevoSaldoInicial,
       orden: cuenta ? cuenta.orden : cuentasCache.length + 1,
     };
     if (!payload.nombre) return alert("Escribe un nombre para la cuenta");
