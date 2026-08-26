@@ -692,11 +692,17 @@ function renderizarDeudas() {
             </div>
           </div>
           <div class="deuda-datos" style="grid-template-columns: repeat(2,1fr);">
-            <div><span>Saldo en tarjeta</span>${formatoMoneda(d.saldo_tarjeta)}</div>
+            <div><span>Saldo usado</span>${formatoMoneda(d.saldo_tarjeta)}</div>
             <div><span>Corte mensual</span>Día ${d.dia_corte || "—"}</div>
+            ${d.cupo > 0 ? `<div><span>Cupo total</span>${formatoMoneda(d.cupo)}</div>
+            <div><span>Cupo disponible</span><strong class="${(d.cupo - d.saldo_tarjeta) < 0 ? "negativo" : "positivo"}">${formatoMoneda(d.cupo - d.saldo_tarjeta)}</strong></div>` : ""}
             <div><span>Límite de pago</span>${fechaLimiteStr}</div>
             <div><span>Corte ${mesLabel}</span>${badgeCorte}</div>
           </div>
+          ${d.cupo > 0 ? `<div class="barra-progreso" title="${((d.saldo_tarjeta/d.cupo)*100).toFixed(0)}% del cupo usado">
+            <div class="barra-progreso-fill ${d.saldo_tarjeta/d.cupo >= 0.9 ? "barra-excedido" : d.saldo_tarjeta/d.cupo >= 0.7 ? "barra-advertencia" : "barra-ok"}"
+              style="width:${Math.min((d.saldo_tarjeta/d.cupo)*100,100)}%"></div>
+          </div>` : ""}
           ${alertaVencimiento}
           <div class="deuda-acciones" style="gap:8px;flex-wrap:wrap;">
             <button class="btn-secundario btn-pequeno" onclick="abrirModalCorte('${d.id}')">
@@ -783,6 +789,10 @@ function abrirModalDeuda(id) {
 
     <div id="campos-deuda-tarjeta" class="${tipoInicial === "tarjeta_credito" ? "" : "oculto"}">
       <div class="campo">
+        <label>Cupo total de la tarjeta</label>
+        <input type="number" id="deuda-cupo" min="0" value="${deuda && deuda.tipo === "tarjeta_credito" ? (deuda.cupo || 0) : 0}" placeholder="0">
+      </div>
+      <div class="campo">
         <label>Saldo actual que debes</label>
         <input type="number" id="deuda-saldo-tarjeta" min="0" value="${deuda && deuda.tipo === "tarjeta_credito" ? deuda.saldo_tarjeta : 0}" placeholder="0">
       </div>
@@ -836,6 +846,7 @@ function abrirModalDeuda(id) {
 
     if (tipo === "tarjeta_credito") {
       payload.saldo_tarjeta = parseFloat(document.getElementById("deuda-saldo-tarjeta").value) || 0;
+      payload.cupo = parseFloat(document.getElementById("deuda-cupo").value) || 0;
       payload.dia_corte = parseInt(document.getElementById("deuda-dia-corte").value) || null;
       payload.dia_limite_pago = parseInt(document.getElementById("deuda-dia-limite").value) || null;
       payload.monto_total = 0;
