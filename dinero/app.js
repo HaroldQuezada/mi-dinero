@@ -922,8 +922,13 @@ function registrarPagoDeuda(id) {
   const saldoActual = esTarjeta ? deuda.saldo_tarjeta : (deuda.monto_total - deuda.pagado_acumulado);
 
   const opcionesCuentas = cuentasCache.length > 0
-    ? cuentasCache.map((c) => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join("")
+    ? cuentasCache.map((c) => `<option value="cuenta:${c.id}">${escapeHtml(c.nombre)}</option>`).join("")
     : `<option value="">Sin cuentas configuradas</option>`;
+  const opcionesTarjetasPago = deudasCache
+    .filter((d) => d.tipo === "tarjeta_credito" && d.id !== id)
+    .map((t) => `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`)
+    .join("");
+  const todasLasOpciones = opcionesCuentas + opcionesTarjetasPago;
 
   abrirModal(`
     <h3>Pagar ${esTarjeta ? "corte de " : ""}${escapeHtml(deuda.nombre)}</h3>
@@ -938,7 +943,7 @@ function registrarPagoDeuda(id) {
     </div>
     <div class="campo">
       <label>Pagar desde</label>
-      <select id="pago-cuenta">${opcionesCuentas}</select>
+      <select id="pago-cuenta">${todasLasOpciones}</select>
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -949,8 +954,9 @@ function registrarPagoDeuda(id) {
   document.getElementById("btn-confirmar-pago").addEventListener("click", async () => {
     const monto = parseFloat(document.getElementById("pago-monto").value);
     if (!monto || monto <= 0) return alert("Ingresa un monto válido");
-    const cuentaId = document.getElementById("pago-cuenta").value || null;
-    const metodoPago = cuentaId ? `cuenta:${cuentaId}` : "efectivo";
+    const val = document.getElementById("pago-cuenta").value || "";
+    const cuentaId = val.startsWith("cuenta:") ? val.split(":")[1] : null;
+    const metodoPago = val || "efectivo";
 
     // Actualiza el saldo de la deuda según su tipo
     const { error: errorDeuda } = esTarjeta
@@ -1059,7 +1065,8 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
         <div class="campo">
           <label>Pagar desde</label>
           <select id="gf-pago-cuenta">
-            ${cuentasCache.map((c) => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join("")}
+            ${cuentasCache.map((c) => `<option value="cuenta:${c.id}">${escapeHtml(c.nombre)}</option>`).join("")}
+            ${deudasCache.filter((d) => d.tipo === "tarjeta_credito").map((t) => `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`).join("")}
           </select>
         </div>
         <div class="modal-acciones">
@@ -1069,8 +1076,9 @@ async function togglePagoGastoFijo(gastoFijoId, marcarComoPagado) {
       `);
 
       document.getElementById("btn-confirmar-gf").addEventListener("click", async () => {
-        const cuentaId = document.getElementById("gf-pago-cuenta").value;
-        const metodoPago = cuentaId ? `cuenta:${cuentaId}` : "efectivo";
+        const val = document.getElementById("gf-pago-cuenta").value;
+        const cuentaId = val.startsWith("cuenta:") ? val.split(":")[1] : null;
+        const metodoPago = val;
         cerrarModal();
         await _ejecutarPagoGastoFijo(gasto, gastoFijoId, mes, metodoPago, cuentaId);
       });
