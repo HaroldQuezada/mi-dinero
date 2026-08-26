@@ -483,15 +483,17 @@ function abrirModalMovimiento(id) {
     }
   });
 
-  function actualizarMetodosPago() {
+  function actualizarMetodosPago(tipo) {
     const select = document.getElementById("mov-metodo-pago");
-    const tarjetas = deudasCache.filter((d) => d.tipo === "tarjeta_credito");
     const opcionesCuentas = cuentasCache.length > 0
       ? cuentasCache.map((c) => `<option value="cuenta:${c.id}">${escapeHtml(c.nombre)}</option>`)
       : [`<option value="efectivo">Efectivo (sin cuenta configurada)</option>`];
-    const opcionesTarjetas = tarjetas.map((t) =>
-      `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`
-    );
+    // Tarjetas solo para gastos (no tiene sentido recibir ingreso en tarjeta de crédito)
+    const opcionesTarjetas = tipo === "gasto"
+      ? deudasCache
+          .filter((d) => d.tipo === "tarjeta_credito")
+          .map((t) => `<option value="credito:${t.id}">Crédito: ${escapeHtml(t.nombre)}</option>`)
+      : [];
     select.innerHTML = [...opcionesCuentas, ...opcionesTarjetas].join("");
     if (movimiento && movimiento.metodo_pago) {
       const opts = [...select.options].map((o) => o.value);
@@ -500,9 +502,12 @@ function abrirModalMovimiento(id) {
   }
 
   function actualizarVisibilidadMetodoPago(tipo) {
-    document.getElementById("campo-metodo-pago").classList.toggle("oculto", tipo !== "gasto");
+    // La cuenta siempre se muestra — para ingresos es "Cuenta destino", para gastos es "Cuenta"
+    const label = document.querySelector("#campo-metodo-pago label");
+    if (label) label.textContent = tipo === "ingreso" ? "Cuenta destino" : "Cuenta";
+    document.getElementById("campo-metodo-pago").classList.remove("oculto");
   }
-  actualizarMetodosPago();
+  actualizarMetodosPago(tipoInicial);
   actualizarVisibilidadMetodoPago(tipoInicial);
 
   document.getElementById("toggle-ingreso").addEventListener("click", () => {
@@ -510,6 +515,7 @@ function abrirModalMovimiento(id) {
     document.getElementById("toggle-ingreso").classList.add("activo-ingreso");
     document.getElementById("toggle-gasto").classList.remove("activo-gasto");
     actualizarCategorias("ingreso");
+    actualizarMetodosPago("ingreso");
     actualizarVisibilidadMetodoPago("ingreso");
   });
   document.getElementById("toggle-gasto").addEventListener("click", () => {
@@ -517,6 +523,7 @@ function abrirModalMovimiento(id) {
     document.getElementById("toggle-gasto").classList.add("activo-gasto");
     document.getElementById("toggle-ingreso").classList.remove("activo-ingreso");
     actualizarCategorias("gasto");
+    actualizarMetodosPago("gasto");
     actualizarVisibilidadMetodoPago("gasto");
   });
 
