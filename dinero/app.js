@@ -2154,10 +2154,27 @@ function abrirModalCuenta(id) {
     let error;
     if (cuenta) {
       ({ error } = await db.from("cuentas").update(payload).eq("id", cuenta.id));
+      if (error) return alert("Error: " + error.message);
+
+      // Si hay diferencia entre el saldo actual calculado y el saldo deseado,
+      // crear un movimiento de ajuste en esta cuenta para que el historial cuadre
+      const diferencia = saldoDeseado - saldoActual;
+      if (Math.abs(diferencia) >= 1) {
+        const { error: errorMov } = await db.from("movimientos").insert({
+          tipo: diferencia > 0 ? "ingreso" : "gasto",
+          monto: Math.abs(diferencia),
+          categoria: "Diferencia no registrada",
+          fecha: fechaHoy(),
+          nota: `Ajuste de cuenta: ${escapeHtml(payload.nombre)}`,
+          metodo_pago: `cuenta:${cuenta.id}`,
+          cuenta_id: cuenta.id,
+        });
+        if (errorMov) console.error("Error al crear movimiento de ajuste:", errorMov.message);
+      }
     } else {
       ({ error } = await db.from("cuentas").insert(payload));
+      if (error) return alert("Error: " + error.message);
     }
-    if (error) return alert("Error: " + error.message);
     cerrarModal();
     await Promise.all([cargarCuentas(), cargarMovimientos()]);
     renderizarDashboard();
