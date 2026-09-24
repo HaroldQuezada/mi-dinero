@@ -2130,9 +2130,10 @@ function abrirModalCuenta(id) {
       </select>
     </div>
     <div class="campo">
-      <label>${cuenta ? "Saldo actual real (corrígelo si no cuadra)" : "Saldo inicial"}</label>
+      <label>${cuenta ? "¿Cuánto tienes en esta cuenta ahora mismo?" : "Saldo inicial"}</label>
       <input type="number" id="cta-saldo" value="${saldoActual}" placeholder="0">
-      ${cuenta && delta !== 0 ? `<small style="color:var(--color-texto-suave);font-size:11px;">Movimientos registrados: ${formatoMoneda(delta)}</small>` : ""}
+      <input type="hidden" id="cta-saldo-base" value="${saldoActual}">
+      ${cuenta && delta !== 0 ? `<small style="color:var(--color-texto-suave);font-size:11px;">La app calcula: ${formatoMoneda(saldoActual)} · Escribe el valor real si no cuadra</small>` : ""}
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -2142,6 +2143,7 @@ function abrirModalCuenta(id) {
 
   document.getElementById("btn-guardar-cuenta").addEventListener("click", async () => {
     const saldoDeseado = parseFloat(document.getElementById("cta-saldo").value) || 0;
+    const saldoBase = parseFloat(document.getElementById("cta-saldo-base").value) || 0;
     // Recalcular saldo_inicial para que saldo_inicial + delta = saldoDeseado
     const nuevoSaldoInicial = saldoDeseado - delta;
     const payload = {
@@ -2158,7 +2160,7 @@ function abrirModalCuenta(id) {
 
       // Si hay diferencia entre el saldo actual calculado y el saldo deseado,
       // crear un movimiento de ajuste en esta cuenta para que el historial cuadre
-      const diferencia = saldoDeseado - saldoActual;
+      const diferencia = saldoDeseado - saldoBase;
       if (Math.abs(diferencia) >= 1) {
         const { error: errorMov } = await db.from("movimientos").insert({
           tipo: diferencia > 0 ? "ingreso" : "gasto",
