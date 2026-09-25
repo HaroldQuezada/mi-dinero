@@ -1221,9 +1221,17 @@ function renderizarDashboard() {
   const mes = mesActual();
 
   // Balance actual: suma de saldos de cuentas (si hay), si no suma histórica de movimientos
-  const balance = cuentasCache.length > 0
+  // Balance = suma de saldos de cuentas + movimientos sin cuenta asignada
+  // (gastos con tarjeta de crédito no tienen cuenta_id pero sí restan del balance real)
+  const balanceCuentas = cuentasCache.length > 0
     ? cuentasCache.reduce((acc, c) => acc + saldoCuenta(c.id), 0)
     : movimientosCache.reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0);
+  const balanceSinCuenta = cuentasCache.length > 0
+    ? movimientosCache
+        .filter((m) => !m.cuenta_id)
+        .reduce((acc, m) => acc + (m.tipo === "ingreso" ? m.monto : -m.monto), 0)
+    : 0;
+  const balance = balanceCuentas + balanceSinCuenta;
 
   // Ingresos y gastos solo del mes actual
   const movimientosDelMes = movimientosCache.filter((m) => m.fecha.slice(0, 7) === mes);
