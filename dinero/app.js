@@ -2130,10 +2130,9 @@ function abrirModalCuenta(id) {
       </select>
     </div>
     <div class="campo">
-      <label>${cuenta ? "¿Cuánto tienes en esta cuenta ahora mismo?" : "Saldo inicial"}</label>
+      <label>Saldo actual</label>
       <input type="number" id="cta-saldo" value="${saldoActual}" placeholder="0">
-      <input type="hidden" id="cta-saldo-base" value="${saldoActual}">
-      ${cuenta && delta !== 0 ? `<small style="color:var(--color-texto-suave);font-size:11px;">La app calcula: ${formatoMoneda(saldoActual)} · Escribe el valor real si no cuadra</small>` : ""}
+      <small style="color:var(--color-texto-suave);font-size:11px;">Escribe el valor real que tienes en esta cuenta hoy</small>
     </div>
     <div class="modal-acciones">
       <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -2143,8 +2142,8 @@ function abrirModalCuenta(id) {
 
   document.getElementById("btn-guardar-cuenta").addEventListener("click", async () => {
     const saldoDeseado = parseFloat(document.getElementById("cta-saldo").value) || 0;
-    const saldoBase = parseFloat(document.getElementById("cta-saldo-base").value) || 0;
-    // Recalcular saldo_inicial para que saldo_inicial + delta = saldoDeseado
+    // saldo_inicial = lo que el usuario escribió menos los movimientos ya registrados
+    // Así: saldo_inicial + delta = saldoDeseado
     const nuevoSaldoInicial = saldoDeseado - delta;
     const payload = {
       nombre: document.getElementById("cta-nombre").value.trim(),
@@ -2156,27 +2155,10 @@ function abrirModalCuenta(id) {
     let error;
     if (cuenta) {
       ({ error } = await db.from("cuentas").update(payload).eq("id", cuenta.id));
-      if (error) return alert("Error: " + error.message);
-
-      // Si hay diferencia entre el saldo actual calculado y el saldo deseado,
-      // crear un movimiento de ajuste en esta cuenta para que el historial cuadre
-      const diferencia = saldoDeseado - saldoBase;
-      if (Math.abs(diferencia) >= 1) {
-        const { error: errorMov } = await db.from("movimientos").insert({
-          tipo: diferencia > 0 ? "ingreso" : "gasto",
-          monto: Math.abs(diferencia),
-          categoria: "Diferencia no registrada",
-          fecha: fechaHoy(),
-          nota: `Ajuste de cuenta: ${escapeHtml(payload.nombre)}`,
-          metodo_pago: `cuenta:${cuenta.id}`,
-          cuenta_id: cuenta.id,
-        });
-        if (errorMov) console.error("Error al crear movimiento de ajuste:", errorMov.message);
-      }
     } else {
       ({ error } = await db.from("cuentas").insert(payload));
-      if (error) return alert("Error: " + error.message);
     }
+    if (error) return alert("Error: " + error.message);
     cerrarModal();
     await Promise.all([cargarCuentas(), cargarMovimientos()]);
     renderizarDashboard();
