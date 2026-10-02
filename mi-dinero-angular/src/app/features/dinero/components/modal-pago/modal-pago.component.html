@@ -1,0 +1,11 @@
+<app-modal [titulo]="titulo()" textoConfirmar="Confirmar pago" (cerrar)="cerrar.emit()"
+  (confirmar)="confirmar()">
+  <p class="fila-detalle mb-14">Saldo pendiente: <strong>{{ saldo() | moneda }}</strong></p>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Monto a pagar</span>
+    <input type="number" [(ngModel)]="monto" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <app-selector-cuenta etiqueta="Pagar desde" [(valor)]="cuentaOrigenId" />
+</app-modal>

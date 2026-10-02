@@ -1,0 +1,39 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <app-toggle-opciones etiqueta="Tipo" [opciones]="tiposMovimiento" [valor]="tipo()"
+    (valorChange)="cambiarTipo($event)" />
+
+  <label class="campo">
+    <span class="campo-etiqueta">Monto</span>
+    <input type="number" [(ngModel)]="monto" min="0" step="1" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <div class="cuentas-transaccion" [class.con-traslado]="pideOrigen() && pideDestino()">
+    @if (pideOrigen()) {
+      <app-selector-cuenta [etiqueta]="etiquetaOrigen()" [(valor)]="cuentaOrigenId" />
+    }
+    @if (pideOrigen() && pideDestino()) {
+      <button type="button" class="btn-icono btn-icono-borde btn-invertir" title="Intercambiar cuentas"
+        aria-label="Intercambiar cuenta de origen y destino" (click)="invertirCuentas()">
+        <fa-icon [icon]="iconos.traslado" />
+      </button>
+    }
+    @if (pideDestino()) {
+      <app-selector-cuenta [etiqueta]="etiquetaDestino()" [excluir]="pideOrigen() ? cuentaOrigenId() : null"
+        [(valor)]="cuentaDestinoId" />
+    }
+  </div>
+
+  <!-- Los traslados no tienen categoría: solo mueven dinero entre cuentas -->
+  @if (tipoCategoria(); as tipoCategoria) {
+    <app-selector-categoria [tipo]="tipoCategoria" [(valor)]="categoria" />
+  } @else {
+    <p class="hint mb-14">Un traslado mueve dinero entre tus cuentas: no cambia tu patrimonio neto.</p>
+  }
+
+  <app-campo-fecha etiqueta="Fecha" [(valor)]="fecha" />
+
+  <label class="campo">
+    <span class="campo-etiqueta">Descripción (opcional)</span>
+    <input type="text" [(ngModel)]="descripcion" placeholder="Ej: Mercado del mes" />
+  </label>
+</app-modal>

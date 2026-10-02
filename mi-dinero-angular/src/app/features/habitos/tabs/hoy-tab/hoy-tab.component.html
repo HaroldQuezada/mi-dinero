@@ -1,0 +1,40 @@
+<section aria-labelledby="titulo-hoy">
+  <header class="encabezado-hoy">
+    <p class="fecha-hoy">{{ hoyIso | fechaLarga }}</p>
+    <h2 id="titulo-hoy" class="resumen-hoy">
+      {{ completadosHoy() }} de {{ habitosDeHoy().length }} completados
+    </h2>
+  </header>
+
+  <ul class="lista-habitos-hoy">
+    @for (item of habitosDeHoy(); track item.habito.id) {
+      <li class="tarjeta-habito-hoy"
+        [class.es-completado]="item.estado === 'completado'"
+        [class.es-saltado]="item.estado === 'saltado'">
+        <div class="habito-info">
+          <span class="habito-nombre">{{ item.habito.nombre }}</span>
+          <span class="habito-meta">
+            {{ item.detalle }}
+            @if (item.racha > 0) {
+              <span class="racha-pill">🔥 {{ item.racha }} días</span>
+            }
+          </span>
+        </div>
+        <div class="acciones-hoy">
+          <button type="button" class="btn-icono" title="Completado"
+            [class.activo-completado]="item.estado === 'completado'"
+            [attr.aria-pressed]="item.estado === 'completado'"
+            [attr.aria-label]="'Marcar ' + item.habito.nombre + ' como completado'"
+            (click)="marcar(item.habito.id, 'completado')">✅</button>
+          <button type="button" class="btn-icono" title="Saltado a propósito"
+            [class.activo-saltado]="item.estado === 'saltado'"
+            [attr.aria-pressed]="item.estado === 'saltado'"
+            [attr.aria-label]="'Marcar ' + item.habito.nombre + ' como saltado'"
+            (click)="marcar(item.habito.id, 'saltado')">⏭️</button>
+        </div>
+      </li>
+    } @empty {
+      <li class="vacio">No tienes hábitos programados para hoy</li>
+    }
+  </ul>
+</section>

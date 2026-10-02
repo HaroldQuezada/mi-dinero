@@ -1,0 +1,18 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <label class="campo">
+    <span class="campo-etiqueta">Nombre</span>
+    <input type="text" [(ngModel)]="nombre" placeholder="Ej: Fondo de emergencia" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Valor objetivo</span>
+    <input type="number" [(ngModel)]="objetivo" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Valor ahorrado hasta ahora</span>
+    <input type="number" [(ngModel)]="ahorrado" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <app-campo-fecha etiqueta="Fecha objetivo (opcional)" [opcional]="true" [minima]="hoy" [(valor)]="fecha" />
+</app-modal>

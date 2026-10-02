@@ -1,0 +1,15 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <label class="campo">
+    <span class="campo-etiqueta">Nombre</span>
+    <input type="text" [(ngModel)]="nombre" placeholder="Ej: Arriendo" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Monto</span>
+    <input type="number" [(ngModel)]="monto" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <app-selector-categoria tipo="GASTO" [(valor)]="categoria" />
+
+  <app-selector-cuenta etiqueta="Se paga con" [(valor)]="cuentaId" />
+</app-modal>

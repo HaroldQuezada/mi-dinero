@@ -1,0 +1,46 @@
+@let d = deuda();
+@let normal = info();
+<article class="tarjeta-deuda">
+  <header class="subtarjeta-header">
+    <h3 class="tarjeta-deuda-nombre">{{ d.nombre }}</h3>
+    <app-acciones-fila [nombre]="d.nombre" (editar)="editar.emit()" (eliminar)="eliminar()" />
+  </header>
+
+  <app-progress-bar [porcentaje]="normal.porcentaje" [etiqueta]="'Avance del pago de ' + d.nombre" />
+
+  <dl class="cifras">
+    <div>
+      <dt>Total</dt>
+      <dd>{{ d.monto_total | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Pagado</dt>
+      <dd>{{ d.pagado_acumulado | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Saldo</dt>
+      <dd>{{ normal.saldoRestante | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Pago mensual</dt>
+      <dd>{{ d.pago_mensual_planeado | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Termina</dt>
+      <dd>{{ normal.fechaEstimada }}</dd>
+    </div>
+    <div>
+      <dt>Este mes</dt>
+      <dd>
+        <app-badge-pago [pagado]="pagadaEsteMes()" textoPagado="Pagado este mes"
+          textoPendiente="Pendiente este mes" />
+      </dd>
+    </div>
+  </dl>
+
+  <footer class="deuda-acciones">
+    <button type="button" class="btn-secundario btn-pequeno" (click)="pagar.emit()">
+      <fa-icon [icon]="iconos.agregar" /> Registrar pago
+    </button>
+  </footer>
+</article>

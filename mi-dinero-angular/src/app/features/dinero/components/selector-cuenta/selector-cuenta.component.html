@@ -1,0 +1,14 @@
+<div class="campo">
+  <label class="campo-etiqueta" [for]="idCampo">{{ etiqueta() }}</label>
+  <select [id]="idCampo" [ngModel]="valor()" (ngModelChange)="valor.set($event || null)">
+    <option [ngValue]="null" disabled>Elige una cuenta</option>
+    @for (opcion of opciones(); track opcion.valor) {
+      <option [ngValue]="opcion.valor">{{ opcion.etiqueta }}</option>
+    } @empty {
+      <option [ngValue]="null" disabled>No hay cuentas: créalas en la pestaña Cuentas</option>
+    }
+  </select>
+  @if (saldoElegida() !== null) {
+    <span class="hint">Saldo actual: {{ saldoElegida() | moneda }}</span>
+  }
+</div>

@@ -1,0 +1,22 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <label class="campo">
+    <span class="campo-etiqueta">Nombre</span>
+    <input type="text" [(ngModel)]="nombre" placeholder="Ej: Préstamo carro" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Monto total</span>
+    <input type="number" [(ngModel)]="montoTotal" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+  <label class="campo">
+    <span class="campo-etiqueta">Pagado hasta ahora</span>
+    <input type="number" [(ngModel)]="pagado" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Pago mensual planeado</span>
+    <input type="number" [(ngModel)]="pagoMensual" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <p class="hint">Las tarjetas de crédito se registran como cuentas, en la pestaña Cuentas.</p>
+</app-modal>

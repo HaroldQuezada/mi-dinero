@@ -1,0 +1,10 @@
+<div class="fila-acciones">
+  <button type="button" class="btn-icono" [attr.aria-label]="'Editar ' + nombre()" title="Editar"
+    (click)="editar.emit()">
+    <fa-icon [icon]="iconos.editar" />
+  </button>
+  <button type="button" class="btn-icono btn-icono-peligro" [attr.aria-label]="'Eliminar ' + nombre()"
+    title="Eliminar" (click)="eliminar.emit()">
+    <fa-icon [icon]="iconos.eliminar" />
+  </button>
+</div>

@@ -1,0 +1,13 @@
+<fieldset class="campo">
+  <legend class="campo-etiqueta">{{ etiqueta() }}</legend>
+  <div class="toggle">
+    @for (opcion of opciones(); track opcion.valor) {
+      @let activa = valor() === opcion.valor;
+      <button type="button" [attr.aria-pressed]="activa"
+        [class.activo-positivo]="activa && (opcion.variante ?? 'positivo') === 'positivo'"
+        [class.activo-negativo]="activa && opcion.variante === 'negativo'"
+        [class.activo-neutro]="activa && opcion.variante === 'neutro'"
+        (click)="valor.set(opcion.valor)">{{ opcion.etiqueta }}</button>
+    }
+  </div>
+</fieldset>

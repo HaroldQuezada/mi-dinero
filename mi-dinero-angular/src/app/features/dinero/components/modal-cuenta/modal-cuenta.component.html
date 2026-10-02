@@ -1,0 +1,37 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <label class="campo">
+    <span class="campo-etiqueta">Nombre</span>
+    <input type="text" [(ngModel)]="nombre" placeholder="Ej: Cuenta Débito, Nequi, Trii" />
+  </label>
+
+  <app-toggle-opciones etiqueta="Tipo" [opciones]="tiposCuenta" [(valor)]="tipo" />
+
+  <label class="campo">
+    <span class="campo-etiqueta">{{ esCredito() ? '¿Cuánto debes hoy en esta tarjeta?' : '¿Cuánto tienes hoy en esta cuenta?' }}</span>
+    <input type="number" [(ngModel)]="cifra" step="1" placeholder="0" inputmode="numeric" />
+  </label>
+
+  @if (esCredito()) {
+    <div class="grid-2col">
+      <label class="campo">
+        <span class="campo-etiqueta">Día de corte</span>
+        <input type="number" [(ngModel)]="diaCorte" min="1" max="31" placeholder="Ej: 15" inputmode="numeric" />
+      </label>
+      <label class="campo">
+        <span class="campo-etiqueta">Día límite de pago</span>
+        <input type="number" [(ngModel)]="diaLimite" min="1" max="31" placeholder="Ej: 5" inputmode="numeric" />
+      </label>
+    </div>
+  }
+
+  <fieldset class="campo">
+    <legend class="campo-etiqueta">Color</legend>
+    <div class="selector-color" role="radiogroup" aria-label="Color de la cuenta">
+      @for (opcion of opcionesColor; track opcion.slot) {
+        <button type="button" class="muestra-color" role="radio" [style.--color-categoria]="opcion.color"
+          [attr.aria-checked]="slot() === opcion.slot" [attr.aria-label]="'Color ' + opcion.slot"
+          (click)="slot.set(opcion.slot)"></button>
+      }
+    </div>
+  </fieldset>
+</app-modal>

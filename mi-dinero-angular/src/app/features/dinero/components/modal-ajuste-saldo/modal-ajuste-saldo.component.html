@@ -1,0 +1,16 @@
+<app-modal titulo="Ajustar saldo real" textoConfirmar="Aplicar ajuste" (cerrar)="cerrar.emit()"
+  (confirmar)="confirmar()">
+  <app-selector-cuenta etiqueta="Cuenta" [(valor)]="cuentaId" />
+
+  <p class="fila-detalle mb-16">
+    {{ esCredito() ? 'Deuda calculada' : 'Saldo calculado' }}: <strong>{{ cifraActual() | moneda }}</strong><br />
+    Si dejaste de registrar movimientos, escribe el valor real de hoy y se creará un ajuste automático.
+  </p>
+
+  <label class="campo">
+    <span class="campo-etiqueta">{{ esCredito() ? '¿Cuánto debes realmente?' : '¿Cuánto tienes realmente?' }}</span>
+    <input type="number" [(ngModel)]="cifraReal" step="1" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <p class="hint mt-10" aria-live="polite">{{ vistaPrevia() }}</p>
+</app-modal>

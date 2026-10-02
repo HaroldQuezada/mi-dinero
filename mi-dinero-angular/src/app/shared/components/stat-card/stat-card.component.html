@@ -1,0 +1,24 @@
+<article class="tarjeta" [class.tarjeta-destacada]="destacada()" [class.tarjeta-hero]="hero()">
+  <header class="tarjeta-header">
+    <span class="tarjeta-label">{{ etiqueta() }}</span>
+    @if (icono(); as icono) {
+      <span class="tarjeta-icono" aria-hidden="true"><fa-icon [icon]="icono" /></span>
+    }
+  </header>
+
+  <span class="tarjeta-valor" [class.positivo]="tono() === 'positivo'" [class.negativo]="tono() === 'negativo'">
+    {{ valor() | moneda }}
+  </span>
+
+  @if (infoVariacion(); as v) {
+    <span class="tarjeta-variacion" [class.favorable]="v.favorable" [class.desfavorable]="!v.favorable">
+      <fa-icon [icon]="v.icono" aria-hidden="true" />
+      {{ v.valorAbsoluto | porcentaje }} {{ v.texto }} que el mes anterior
+    </span>
+  }
+
+  @if (subetiqueta()) {
+    <span class="tarjeta-sublabel">{{ subetiqueta() }}</span>
+  }
+  <ng-content />
+</article>

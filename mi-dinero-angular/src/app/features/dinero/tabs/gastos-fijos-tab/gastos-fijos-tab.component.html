@@ -1,0 +1,22 @@
+<section aria-labelledby="titulo-gastos-fijos">
+  <header class="panel-header">
+    <h2 id="titulo-gastos-fijos">Gastos fijos mensuales</h2>
+    <button type="button" class="btn-primario" (click)="modal.abrir()">
+      <fa-icon [icon]="iconos.agregar" /> Agregar
+    </button>
+  </header>
+
+  <ul class="lista-tabla">
+    @for (gasto of service.gastosFijos(); track gasto.id) {
+      <li>
+        <app-gasto-fijo-fila [gasto]="gasto" [conDetalle]="true" (editar)="modal.abrir(gasto)" />
+      </li>
+    } @empty {
+      <li class="vacio">No tienes gastos fijos registrados</li>
+    }
+  </ul>
+</section>
+
+@if (modal.abierto()) {
+  <app-modal-gasto-fijo [gasto]="modal.entidad()" (cerrar)="modal.cerrar()" />
+}

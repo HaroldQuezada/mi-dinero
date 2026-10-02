@@ -1,0 +1,78 @@
+<article class="bloque">
+  <header class="panel-header panel-header-sm">
+    <h2 class="titulo-sin-margen">Ingresos vs gastos</h2>
+    <ul class="grafica-leyenda-linea titulo-sin-margen">
+      <li><span class="muestra-serie" [style.--color-serie]="colorIngresos"></span>Ingresos</li>
+      <li><span class="muestra-serie" [style.--color-serie]="colorGastos"></span>Gastos</li>
+    </ul>
+  </header>
+
+  @if (!hayDatos()) {
+    <p class="vacio">Aún no hay movimientos en los últimos meses</p>
+  } @else {
+    @if (mesLeido(); as mes) {
+      <p class="grafica-lectura" aria-live="polite">
+        <span class="grafica-lectura-titulo">{{ mes.etiquetaLarga }}</span>
+        <span class="grafica-lectura-dato">
+          <span class="muestra-serie" [style.--color-serie]="colorIngresos"></span>
+          Ingresos <strong>{{ mes.ingresos | moneda }}</strong>
+        </span>
+        <span class="grafica-lectura-dato">
+          <span class="muestra-serie" [style.--color-serie]="colorGastos"></span>
+          Gastos <strong>{{ mes.gastos | moneda }}</strong>
+        </span>
+        <span class="grafica-lectura-dato">
+          Neto
+          <strong [class.positivo]="mes.neto >= 0" [class.negativo]="mes.neto < 0">{{ mes.neto | moneda }}</strong>
+        </span>
+      </p>
+    }
+
+    <svg class="grafica-svg" [attr.viewBox]="viewBox" role="img"
+      aria-label="Columnas de ingresos y gastos por mes" (mouseleave)="indiceActivo.set(null)">
+      @for (marca of marcas(); track marca.y) {
+        <line class="grafica-grilla" [attr.x1]="inicioX" [attr.x2]="finX" [attr.y1]="marca.y" [attr.y2]="marca.y" />
+        <text class="grafica-texto-eje" [attr.x]="inicioX - 8" [attr.y]="marca.y" text-anchor="end"
+          dominant-baseline="middle">{{ marca.texto }}</text>
+      }
+      <line class="grafica-eje" [attr.x1]="inicioX" [attr.x2]="finX" [attr.y1]="base" [attr.y2]="base" />
+
+      <g [class.grafica-atenuada]="indiceActivo() !== null">
+        @for (grupo of grupos(); track grupo.mes.clave; let i = $index) {
+          <rect class="grafica-banda-hover" [class.activa]="indiceActivo() === i" [attr.x]="grupo.banda.x"
+            [attr.y]="0" [attr.width]="grupo.banda.ancho" [attr.height]="base" />
+          <path class="grafica-marca" [class.resaltada]="indiceActivo() === i" [attr.d]="grupo.ingresos"
+            [style.fill]="colorIngresos" />
+          <path class="grafica-marca" [class.resaltada]="indiceActivo() === i" [attr.d]="grupo.gastos"
+            [style.fill]="colorGastos" />
+          <text class="grafica-texto-eje" [attr.x]="grupo.xEtiqueta" [attr.y]="base + 18"
+            text-anchor="middle">{{ grupo.mes.etiqueta }}</text>
+          <!-- Zona de interacción: más grande que las columnas para que sea fácil señalarlas -->
+          <rect class="grafica-objetivo" fill="transparent" tabindex="0" [attr.x]="grupo.banda.x" [attr.y]="0"
+            [attr.width]="grupo.banda.ancho" [attr.height]="base"
+            [attr.aria-label]="grupo.mes.etiquetaLarga + ': ingresos ' + (grupo.mes.ingresos | moneda) + ', gastos ' + (grupo.mes.gastos | moneda)"
+            (mouseenter)="indiceActivo.set(i)" (focus)="indiceActivo.set(i)" (blur)="indiceActivo.set(null)" />
+        }
+      </g>
+    </svg>
+
+    <details class="grafica-tabla">
+      <summary>Ver como tabla</summary>
+      <table>
+        <thead>
+          <tr><th scope="col">Mes</th><th scope="col">Ingresos</th><th scope="col">Gastos</th><th scope="col">Neto</th></tr>
+        </thead>
+        <tbody>
+          @for (mes of meses(); track mes.clave) {
+            <tr>
+              <td>{{ mes.etiquetaLarga }}</td>
+              <td>{{ mes.ingresos | moneda }}</td>
+              <td>{{ mes.gastos | moneda }}</td>
+              <td>{{ mes.neto | moneda }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </details>
+  }
+</article>

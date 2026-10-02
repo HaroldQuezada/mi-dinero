@@ -1,0 +1,35 @@
+// ============================================
+// TEMA DE ANGULAR MATERIAL (M3)
+// Usa `theme-type: color-scheme`, así los tokens del sistema siguen la propiedad
+// CSS `color-scheme` que src/styles.css cambia según [data-tema]. Los tokens
+// principales se enlazan a las variables de la app para que Material herede
+// exactamente la misma paleta en modo claro y oscuro.
+// ============================================
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        theme-type: color-scheme,
+      ),
+      typography: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+      density: 0,
+    ),
+    (
+      primary: var(--color-primario),
+      on-primary: #ffffff,
+      surface: var(--color-superficie),
+      on-surface: var(--color-texto),
+      on-surface-variant: var(--color-texto-suave),
+      surface-container: var(--color-superficie-alta),
+      surface-container-high: var(--color-superficie),
+      surface-container-highest: var(--color-superficie-alta),
+      outline: var(--color-borde),
+      outline-variant: var(--color-borde),
+      corner-small: 0.5rem,
+      corner-large: var(--radio),
+    )
+  );
+}

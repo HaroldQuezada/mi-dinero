@@ -1,0 +1,65 @@
+@let c = cuenta();
+<article class="tarjeta-cuenta" [style.--color-categoria]="color()">
+  <header class="tarjeta-cuenta-header">
+    <span class="icono-cuenta" aria-hidden="true"><fa-icon [icon]="icono()" /></span>
+    <div class="tarjeta-cuenta-titulo">
+      <h3 class="subtarjeta-titulo">{{ c.nombre }}</h3>
+      <span class="fila-detalle">{{ etiquetaTipo() }}</span>
+    </div>
+    <app-acciones-fila [nombre]="c.nombre" (editar)="editar.emit()" (eliminar)="eliminar()" />
+  </header>
+
+  <p class="tarjeta-cuenta-saldo">
+    <span class="tarjeta-cuenta-etiqueta">{{ esCredito() ? 'Deuda actual' : 'Saldo actual' }}</span>
+    <strong [class.negativo]="esCredito() ? cifraPrincipal() > 0 : cifraPrincipal() < 0">
+      {{ cifraPrincipal() | moneda }}
+    </strong>
+  </p>
+
+  @if (infoTarjeta(); as tarjeta) {
+    <dl class="cifras cifras-2col">
+      <div>
+        <dt>Corte mensual</dt>
+        <dd>Día {{ c.dia_corte ?? '—' }}</dd>
+      </div>
+      <div>
+        <dt>Límite de pago</dt>
+        <dd>{{ tarjeta.fechaLimiteTexto }}</dd>
+      </div>
+      <div>
+        <dt>Corte {{ mesActualTexto }}</dt>
+        <dd>
+          @if (tarjeta.pagado) {
+            <span class="badge badge-ok">Pagado</span>
+          } @else if (tarjeta.montoCorte > 0) {
+            <span class="badge badge-pendiente">Pendiente: {{ tarjeta.montoCorte | moneda }}</span>
+          } @else {
+            <span class="badge badge-baja">Sin registrar</span>
+          }
+        </dd>
+      </div>
+    </dl>
+    @if (tarjeta.alertaVencimiento) {
+      <p class="alerta-texto texto-negativo" role="alert">{{ tarjeta.alertaVencimiento }}</p>
+    }
+  }
+
+  <footer class="deuda-acciones">
+    @if (infoTarjeta(); as tarjeta) {
+      <button type="button" class="btn-secundario btn-pequeno" (click)="registrarCorte.emit()">
+        <fa-icon [icon]="tarjeta.tieneCorte ? iconos.editar : iconos.calendario" />
+        {{ tarjeta.tieneCorte ? 'Editar corte' : 'Registrar corte' }}
+      </button>
+      <button type="button" class="btn-primario btn-pequeno" (click)="pagar.emit()">
+        <fa-icon [icon]="iconos.tarjeta" /> Pagar tarjeta
+      </button>
+    } @else {
+      <button type="button" class="btn-secundario btn-pequeno" (click)="trasladar.emit()">
+        <fa-icon [icon]="iconos.traslado" /> Trasladar
+      </button>
+    }
+    <button type="button" class="btn-secundario btn-pequeno" (click)="ajustar.emit()">
+      <fa-icon [icon]="iconos.ajustar" /> Ajustar saldo
+    </button>
+  </footer>
+</article>

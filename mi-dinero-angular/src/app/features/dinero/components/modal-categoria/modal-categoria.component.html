@@ -1,0 +1,32 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <div class="vista-previa" [style.--color-categoria]="colorActual()" aria-hidden="true">
+    <span class="vista-previa-icono"><fa-icon [icon]="icono()" /></span>
+    <span class="vista-previa-nombre">{{ nombre() || 'Nueva categoría' }}</span>
+  </div>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Nombre</span>
+    <input type="text" [(ngModel)]="nombre" placeholder="Ej: Alimentación" />
+  </label>
+
+  @if (conPorcentaje()) {
+    <label class="campo">
+      <span class="campo-etiqueta">Porcentaje del ingreso mensual</span>
+      <span class="campo-en-linea">
+        <input type="number" class="input-corto" [(ngModel)]="porcentaje" min="0" max="100" inputmode="decimal" />
+        <span>%</span>
+      </span>
+    </label>
+  }
+
+  <fieldset class="campo">
+    <legend class="campo-etiqueta">Color</legend>
+    <div class="selector-color" role="radiogroup" aria-label="Color de la categoría">
+      @for (opcion of opcionesColor; track opcion.slot) {
+        <button type="button" class="muestra-color" role="radio" [style.--color-categoria]="opcion.color"
+          [attr.aria-checked]="slot() === opcion.slot" [attr.aria-label]="'Color ' + opcion.slot"
+          (click)="elegirColor(opcion.slot)"></button>
+      }
+    </div>
+  </fieldset>
+</app-modal>

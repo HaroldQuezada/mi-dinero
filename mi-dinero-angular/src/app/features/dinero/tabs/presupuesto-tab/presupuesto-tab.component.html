@@ -1,0 +1,119 @@
+<section aria-labelledby="titulo-presupuesto">
+  <header class="panel-header">
+    <h2 id="titulo-presupuesto">Presupuesto</h2>
+    <button type="button" class="btn-primario" (click)="modalConfiguracionAbierto.set(true)">
+      <fa-icon [icon]="iconos.configurar" /> Configurar ingreso y %
+    </button>
+  </header>
+
+  <div class="tarjetas">
+    <app-stat-card etiqueta="Ingreso mensual" [valor]="service.configuracion().ingreso_mensual" />
+    <app-stat-card etiqueta="Comprometido este mes" [valor]="service.comprometidoEsteMes()" />
+    <app-stat-card etiqueta="Disponible para gastar" subetiqueta="Presupuesto de Ocio"
+      [valor]="service.disponibleParaGastar()" [destacada]="true" />
+  </div>
+
+  <article class="bloque">
+    <header class="panel-header panel-header-md">
+      <h2 class="titulo-sin-margen">Categorías y límites</h2>
+      <div class="acciones-categorias">
+        @if (sugeridas().length > 0) {
+          <button type="button" class="btn-secundario btn-pequeno" [disabled]="creandoSugeridas()"
+            [title]="'Agrega: ' + nombresSugeridas()" (click)="crearSugeridas('GASTO')">
+            <fa-icon [icon]="iconos.sugerencias" /> Sugeridas ({{ sugeridas().length }})
+          </button>
+        }
+        <button type="button" class="btn-primario btn-pequeno" (click)="modalCategoria.abrir()">
+          <fa-icon [icon]="iconos.agregar" /> Categoría
+        </button>
+      </div>
+    </header>
+
+    @if (service.resumenCategorias().length === 0) {
+      <p class="vacio">No tienes categorías creadas aún.</p>
+      <p class="hint centrado mb-12">
+        Empieza con las sugeridas ({{ nombresSugeridas() }}) o crea las tuyas.
+      </p>
+      <div class="acciones-vacio">
+        <button type="button" class="btn-primario" [disabled]="creandoSugeridas()" (click)="crearSugeridas('GASTO')">
+          <fa-icon [icon]="iconos.sugerencias" /> Usar categorías sugeridas
+        </button>
+        <button type="button" class="btn-secundario" (click)="modalCategoria.abrir()">
+          <fa-icon [icon]="iconos.agregar" /> Crear la mía
+        </button>
+      </div>
+    } @else {
+      @if (!avisoPorcentajes().correcta) {
+        <p class="alerta-advertencia mb-12" role="alert">{{ avisoPorcentajes().texto }}</p>
+      }
+      <div class="rejilla-categorias">
+        @for (resumen of service.resumenCategorias(); track resumen.categoria.id) {
+          <app-categoria-presupuesto-card [resumen]="resumen"
+            (editar)="modalCategoria.abrir(resumen.categoria)"
+            (agregarSubcategoria)="modalSubcategoria.abrir(resumen.categoria)" />
+        }
+      </div>
+    }
+  </article>
+
+  <article class="bloque">
+    <header class="panel-header panel-header-md">
+      <h2 class="titulo-sin-margen">Categorías de ingreso</h2>
+      <div class="acciones-categorias">
+        @if (sugeridasIngreso().length > 0) {
+          <button type="button" class="btn-secundario btn-pequeno" [disabled]="creandoSugeridas()"
+            (click)="crearSugeridas('INGRESO')">
+            <fa-icon [icon]="iconos.sugerencias" /> Sugeridas ({{ sugeridasIngreso().length }})
+          </button>
+        }
+        <button type="button" class="btn-primario btn-pequeno" (click)="modalCategoriaIngreso.abrir()">
+          <fa-icon [icon]="iconos.agregar" /> Categoría
+        </button>
+      </div>
+    </header>
+    <ul class="chips-ingreso">
+      @for (categoria of service.categoriasIngreso(); track categoria.id) {
+        <li class="chip-ingreso" [style.--color-categoria]="service.colorDeCategoria(categoria.id)">
+          <span class="punto-categoria" aria-hidden="true"></span>
+          <button type="button" class="chip-ingreso-nombre" [attr.aria-label]="'Editar ' + categoria.nombre"
+            (click)="modalCategoriaIngreso.abrir(categoria)">{{ categoria.nombre }}</button>
+          <button type="button" class="btn-icono btn-icono-peligro" [attr.aria-label]="'Eliminar ' + categoria.nombre"
+            (click)="eliminarCategoriaIngreso(categoria)"><fa-icon [icon]="iconos.cerrar" /></button>
+        </li>
+      } @empty {
+        <li class="vacio">No tienes categorías de ingreso</li>
+      }
+    </ul>
+  </article>
+
+  <article class="bloque">
+    <header class="panel-header panel-header-md">
+      <h2 class="titulo-sin-margen">Metas de ahorro</h2>
+      <button type="button" class="btn-primario btn-pequeno" (click)="modalMeta.abrir()">
+        <fa-icon [icon]="iconos.agregar" /> Meta
+      </button>
+    </header>
+    @for (meta of service.metasAhorro(); track meta.id) {
+      <app-meta-ahorro-card [meta]="meta" (editar)="modalMeta.abrir(meta)" />
+    } @empty {
+      <p class="vacio">No tienes metas de ahorro creadas</p>
+    }
+  </article>
+</section>
+
+@if (modalConfiguracionAbierto()) {
+  <app-modal-configuracion (cerrar)="modalConfiguracionAbierto.set(false)" />
+}
+@if (modalCategoria.abierto()) {
+  <app-modal-categoria [categoria]="modalCategoria.entidad()" (cerrar)="modalCategoria.cerrar()" />
+}
+@if (modalCategoriaIngreso.abierto()) {
+  <app-modal-categoria tipoNueva="INGRESO" [categoria]="modalCategoriaIngreso.entidad()"
+    (cerrar)="modalCategoriaIngreso.cerrar()" />
+}
+@if (modalSubcategoria.abierto() && modalSubcategoria.entidad(); as categoria) {
+  <app-modal-subcategoria [categoria]="categoria" (cerrar)="modalSubcategoria.cerrar()" />
+}
+@if (modalMeta.abierto()) {
+  <app-modal-meta [meta]="modalMeta.entidad()" (cerrar)="modalMeta.cerrar()" />
+}

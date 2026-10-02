@@ -1,0 +1,24 @@
+<main class="vista-login">
+  <section class="login-box" aria-labelledby="titulo-auth">
+    <header class="login-header">
+      <h1 id="titulo-auth">{{ textos().titulo }}</h1>
+      <p class="subtitulo">{{ textos().subtitulo }}</p>
+    </header>
+
+    @if (mensajeExito()) {
+      <p class="mensaje-exito" role="status">{{ mensajeExito() }}</p>
+    }
+
+    @if (modo() === 'registro') {
+      <app-registro-form (registrado)="alRegistrar($event)" />
+    } @else {
+      <app-login-form />
+    }
+
+    <footer>
+      <button type="button" class="btn-link" (click)="alternarModo()">{{ textos().alternar }}</button>
+    </footer>
+  </section>
+</main>
+
+<app-page-footer />

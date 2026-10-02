@@ -1,0 +1,18 @@
+<app-page-header titulo="Mis Hábitos" />
+<app-tabs [tabs]="tabs" [(activa)]="tabActiva" etiqueta="Secciones de Mis Hábitos" />
+
+<main class="contenido contenido-angosto">
+  @switch (tabActiva()) {
+    @case ('hoy') {
+      <app-hoy-tab />
+    }
+    @case ('habitos') {
+      <app-gestion-tab />
+    }
+    @case ('calendario') {
+      <app-calendario-tab />
+    }
+  }
+</main>
+
+<app-page-footer />

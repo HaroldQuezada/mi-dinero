@@ -1,0 +1,10 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <p class="fila-detalle mb-14">Mes: {{ mesActualTexto }}</p>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Monto a pagar este corte</span>
+    <input type="number" [(ngModel)]="monto" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <app-campo-fecha etiqueta="Fecha límite de pago" [opcional]="true" [(valor)]="fechaLimite" />
+</app-modal>

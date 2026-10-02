@@ -1,0 +1,15 @@
+<div class="campo">
+  <label class="campo-etiqueta" [for]="idCampo">{{ etiqueta() }}</label>
+  <select [id]="idCampo" [ngModel]="valorCodificado()" (ngModelChange)="cambiar($event)">
+    <option value="" disabled>Elige una categoría</option>
+    @for (grupo of grupos(); track grupo.categoria.id) {
+      <optgroup [label]="grupo.categoria.nombre">
+        @for (opcion of grupo.opciones; track opcion.valor) {
+          <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+        }
+      </optgroup>
+    } @empty {
+      <option value="" disabled>No hay categorías: créalas en la pestaña Presupuesto</option>
+    }
+  </select>
+</div>

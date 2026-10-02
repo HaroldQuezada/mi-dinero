@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Mi Vida</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Aplica el tema guardado antes de pintar para evitar un destello del tema equivocado.
+       La clave debe coincidir con PREFIJO_ALMACENAMIENTO + CLAVES_ALMACENAMIENTO.tema -->
+  <script>
+    (function () {
+      var tema = null;
+      try { tema = JSON.parse(localStorage.getItem('mi-vida:tema')); } catch (e) {}
+      if (tema !== 'claro' && tema !== 'oscuro') {
+        tema = window.matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
+      }
+      document.documentElement.dataset.tema = tema;
+    })();
+  </script>
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

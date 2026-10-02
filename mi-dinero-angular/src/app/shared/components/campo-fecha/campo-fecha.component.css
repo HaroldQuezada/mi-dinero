@@ -1,0 +1,20 @@
+/* Compartido por app-campo-fecha y app-campo-mes */
+:host {
+  display: block;
+  margin-bottom: 0.875rem;
+}
+
+.campo-fecha {
+  width: 100%;
+}
+
+.campo-fecha fa-icon {
+  font-size: 1rem;
+  color: var(--color-texto-suave);
+  transition: color var(--duracion-rapida) ease;
+}
+
+.campo-fecha:hover fa-icon,
+.campo-fecha.mat-focused fa-icon {
+  color: var(--color-primario);
+}

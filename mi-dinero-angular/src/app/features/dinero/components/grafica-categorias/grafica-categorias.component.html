@@ -1,0 +1,69 @@
+<article class="bloque">
+  <header class="panel-header panel-header-sm">
+    <h2 class="titulo-sin-margen">Gastos por categoría</h2>
+    <div class="nav-mes">
+      <button type="button" class="btn-icono btn-icono-borde" aria-label="Mes anterior"
+        (click)="cambiarMes(-1)"><fa-icon [icon]="iconos.anterior" /></button>
+      <span class="mayuscula-inicial">{{ titulo() }}</span>
+      <button type="button" class="btn-icono btn-icono-borde" aria-label="Mes siguiente"
+        (click)="cambiarMes(1)"><fa-icon [icon]="iconos.siguiente" /></button>
+    </div>
+  </header>
+
+  @if (categorias().length === 0) {
+    <p class="vacio">No hay gastos registrados este mes</p>
+  } @else {
+    <div class="grafica-wrap">
+      <svg class="grafica-pastel" viewBox="0 0 150 150" role="img"
+        aria-label="Distribución de gastos por categoría">
+        @for (segmento of segmentos(); track segmento.categoria) {
+          <path [attr.d]="segmento.path" [style.fill]="segmento.color" class="segmento-pastel"
+            [class.segmento-activo]="categoriaSeleccionada() === segmento.categoria"
+            (click)="alternarCategoria(segmento.categoria)" />
+          @if (segmento.etiqueta; as etiqueta) {
+            <text [attr.x]="etiqueta.x" [attr.y]="etiqueta.y" class="etiqueta-porcentaje-svg"
+              text-anchor="middle" dominant-baseline="middle">{{ etiqueta.texto }}</text>
+          }
+        }
+      </svg>
+
+      <ul class="grafica-leyenda">
+        @for (item of categorias(); track item.categoria) {
+          <li>
+            <button type="button" class="leyenda-item"
+              [class.leyenda-activa]="categoriaSeleccionada() === item.categoria"
+              [attr.aria-pressed]="categoriaSeleccionada() === item.categoria"
+              (click)="alternarCategoria(item.categoria)">
+              <span class="leyenda-color" [style.background]="item.color"></span>
+              <span class="leyenda-nombre">{{ item.categoria }}</span>
+              <span class="leyenda-monto">{{ item.monto | moneda }}</span>
+              <span class="leyenda-porcentaje">{{ item.porcentaje | porcentaje }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (detalle(); as detalle) {
+    <section class="detalle-categoria" aria-live="polite">
+      <header class="detalle-categoria-header">
+        <h3>{{ detalle.categoria }} · {{ detalle.cantidadTexto }}</h3>
+        <span class="leyenda-monto">{{ detalle.total | moneda }}</span>
+      </header>
+      <ul class="lista-simple">
+        @for (movimiento of detalle.gastos; track movimiento.id) {
+          <li class="fila">
+            <div class="fila-info">
+              <span class="fila-titulo">{{ service.tituloTransaccion(movimiento) }}</span>
+              <span class="fila-detalle">
+                {{ movimiento.fecha | fechaCorta }} · {{ service.detalleTransaccion(movimiento) }}
+              </span>
+            </div>
+            <app-monto-movimiento [movimiento]="movimiento" />
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</article>

@@ -1,0 +1,18 @@
+<form (ngSubmit)="enviar()" novalidate>
+  <label class="campo">
+    <span class="campo-etiqueta">Correo</span>
+    <input type="email" [(ngModel)]="email" name="email" placeholder="tucorreo@ejemplo.com"
+      autocomplete="email" inputmode="email" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Contraseña</span>
+    <app-password-input [(valor)]="password" placeholder="Tu contraseña" autocomplete="current-password" />
+  </label>
+
+  @if (error()) {
+    <p class="mensaje-error" role="alert">{{ error() }}</p>
+  }
+
+  <button type="submit" class="btn-primario btn-bloque" [disabled]="enviando()">Entrar</button>
+</form>

@@ -1,0 +1,20 @@
+.dias-semana-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  gap: 0.375rem;
+}
+
+.dia-toggle {
+  padding: 0.5rem 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-texto);
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+}
+
+.dia-toggle.activo {
+  color: var(--color-primario);
+  background: var(--color-primario-suave);
+  border-color: var(--color-primario);
+}

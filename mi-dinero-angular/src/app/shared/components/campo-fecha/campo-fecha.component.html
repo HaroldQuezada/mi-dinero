@@ -1,0 +1,14 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo-fecha">
+  <mat-label>{{ etiqueta() }}</mat-label>
+  <input matInput [matDatepicker]="selector" [value]="fecha()" [min]="fechaMinima()"
+    placeholder="DD/MM/AAAA" autocomplete="off" (dateChange)="cambiar($event)" />
+  @if (opcional() && valor()) {
+    <button matIconButton matSuffix type="button" aria-label="Quitar fecha" (click)="limpiar()">
+      <fa-icon [icon]="iconos.cerrar" />
+    </button>
+  }
+  <mat-datepicker-toggle matIconSuffix [for]="selector">
+    <fa-icon matDatepickerToggleIcon [icon]="iconos.calendario" />
+  </mat-datepicker-toggle>
+  <mat-datepicker #selector />
+</mat-form-field>

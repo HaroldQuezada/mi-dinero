@@ -1,0 +1,103 @@
+@let errores = erroresVisibles();
+<form (ngSubmit)="enviar()" novalidate>
+  <div class="campo">
+    <label>
+      <span class="campo-etiqueta">Nombres *</span>
+      <input type="text" [(ngModel)]="nombres" name="nombres" placeholder="Ej: María José"
+        autocomplete="given-name" [attr.aria-invalid]="!!errores.nombres" (blur)="marcarTocado('nombres')" />
+    </label>
+    @if (errores.nombres) {
+      <span class="campo-error">{{ errores.nombres }}</span>
+    }
+  </div>
+
+  <div class="campo">
+    <label>
+      <span class="campo-etiqueta">Apellidos *</span>
+      <input type="text" [(ngModel)]="apellidos" name="apellidos" placeholder="Ej: Pérez Gómez"
+        autocomplete="family-name" [attr.aria-invalid]="!!errores.apellidos" (blur)="marcarTocado('apellidos')" />
+    </label>
+    @if (errores.apellidos) {
+      <span class="campo-error">{{ errores.apellidos }}</span>
+    }
+  </div>
+
+  <div class="campo">
+    <label>
+      <span class="campo-etiqueta">Correo *</span>
+      <input type="email" [(ngModel)]="email" name="email" placeholder="tucorreo@ejemplo.com"
+        autocomplete="email" inputmode="email" [attr.aria-invalid]="!!errores.email"
+        (blur)="marcarTocado('email')" />
+    </label>
+    @if (errores.email) {
+      <span class="campo-error">{{ errores.email }}</span>
+    }
+  </div>
+
+  <div class="campo">
+    <label>
+      <span class="campo-etiqueta">Teléfono *</span>
+      <input type="tel" [(ngModel)]="telefono" name="telefono" placeholder="+57 300 123 4567"
+        autocomplete="tel" [attr.aria-invalid]="!!errores.telefono" (blur)="marcarTocado('telefono')" />
+    </label>
+    @if (errores.telefono) {
+      <span class="campo-error">{{ errores.telefono }}</span>
+    }
+  </div>
+
+  <div class="campo">
+    <label>
+      <span class="campo-etiqueta">Contraseña *</span>
+      <app-password-input [(valor)]="password" placeholder="Crea una clave segura"
+        autocomplete="new-password" (tocado)="marcarTocado('password')" />
+    </label>
+    @if (errores.password) {
+      <span class="campo-error">{{ errores.password }}</span>
+    }
+    @if (password()) {
+      <app-fuerza-password [evaluacion]="evaluacion()" />
+    }
+  </div>
+
+  <div class="campo">
+    <label>
+      <span class="campo-etiqueta">Confirmar contraseña *</span>
+      <app-password-input [(valor)]="confirmar" placeholder="Repite la contraseña"
+        autocomplete="new-password" (tocado)="marcarTocado('confirmar')" />
+    </label>
+    @if (errores.confirmar) {
+      <span class="campo-error">{{ errores.confirmar }}</span>
+    }
+  </div>
+
+  <details class="campo-extra">
+    <summary>Datos opcionales (útiles para la futura IA)</summary>
+    <label class="campo">
+      <span class="campo-etiqueta">Fecha de nacimiento</span>
+      <input type="date" [(ngModel)]="fechaNacimiento" name="fechaNacimiento" autocomplete="bday" />
+    </label>
+    <label class="campo">
+      <span class="campo-etiqueta">Ciudad</span>
+      <input type="text" [(ngModel)]="ciudad" name="ciudad" placeholder="Ej: Bogotá" autocomplete="address-level2" />
+    </label>
+    <label class="campo">
+      <span class="campo-etiqueta">Moneda preferida</span>
+      <select [(ngModel)]="moneda" name="moneda">
+        @for (opcion of monedas; track opcion) {
+          <option [value]="opcion">{{ opcion }}</option>
+        }
+      </select>
+    </label>
+    <label class="campo">
+      <span class="campo-etiqueta">Objetivo principal</span>
+      <input type="text" [(ngModel)]="objetivo" name="objetivo"
+        placeholder="Ej: Ahorrar para viaje, salir de deudas..." />
+    </label>
+  </details>
+
+  @if (error()) {
+    <p class="mensaje-error" role="alert">{{ error() }}</p>
+  }
+
+  <button type="submit" class="btn-primario btn-bloque" [disabled]="enviando()">Crear cuenta</button>
+</form>

@@ -1,0 +1,77 @@
+<article class="bloque">
+  <header class="panel-header panel-header-sm">
+    <h2 class="titulo-sin-margen">Evolución del patrimonio neto</h2>
+  </header>
+
+  @if (!hayDatos()) {
+    <p class="vacio">Registra movimientos para ver cómo evoluciona tu patrimonio</p>
+  } @else {
+    @if (mesLeido(); as mes) {
+      <p class="grafica-lectura" aria-live="polite">
+        <span class="grafica-lectura-titulo">Cierre de {{ mes.etiquetaLarga }}</span>
+        <span class="grafica-lectura-dato">
+          Patrimonio
+          <strong [class.negativo]="mes.balanceCierre < 0">{{ mes.balanceCierre | moneda }}</strong>
+        </span>
+        <span class="grafica-lectura-dato">
+          Variación del mes
+          <strong [class.positivo]="mes.neto >= 0" [class.negativo]="mes.neto < 0">{{ mes.neto | moneda }}</strong>
+        </span>
+      </p>
+    }
+
+    <svg class="grafica-svg" [attr.viewBox]="viewBox" role="img"
+      aria-label="Línea del patrimonio neto al cierre de cada mes" (mouseleave)="indiceActivo.set(null)">
+      @for (marca of marcas(); track marca.y) {
+        <line class="grafica-grilla" [attr.x1]="inicioX" [attr.x2]="finX" [attr.y1]="marca.y" [attr.y2]="marca.y" />
+        <text class="grafica-texto-eje" [attr.x]="inicioX - 8" [attr.y]="marca.y" text-anchor="end"
+          dominant-baseline="middle">{{ marca.texto }}</text>
+      }
+      <line class="grafica-eje" [attr.x1]="inicioX" [attr.x2]="finX" [attr.y1]="yCero()" [attr.y2]="yCero()" />
+
+      <path [attr.d]="area()" [style.fill]="color" fill-opacity="0.1" />
+      <path [attr.d]="linea()" fill="none" [style.stroke]="color" stroke-width="2" stroke-linejoin="round"
+        stroke-linecap="round" />
+
+      @if (puntoActivo(); as punto) {
+        <line class="grafica-eje" [attr.x1]="punto.x" [attr.x2]="punto.x" [attr.y1]="arriba" [attr.y2]="base" />
+        <circle [attr.cx]="punto.x" [attr.cy]="punto.y" r="5" [style.fill]="color"
+          style="stroke: var(--color-superficie)" stroke-width="2" />
+      }
+
+      @if (ultimo(); as fin) {
+        <circle [attr.cx]="fin.x" [attr.cy]="fin.y" r="4" [style.fill]="color" style="stroke: var(--color-superficie)"
+          stroke-width="2" />
+        <text class="grafica-texto-valor" [attr.x]="fin.x + 10" [attr.y]="fin.y"
+          dominant-baseline="middle">{{ textoUltimo() }}</text>
+      }
+
+      @for (punto of puntos(); track punto.mes.clave; let i = $index) {
+        <text class="grafica-texto-eje" [attr.x]="punto.x" [attr.y]="base + 18"
+          text-anchor="middle">{{ punto.mes.etiqueta }}</text>
+        <rect class="grafica-objetivo" fill="transparent" tabindex="0" [attr.x]="punto.banda.x" [attr.y]="0"
+          [attr.width]="punto.banda.ancho" [attr.height]="base"
+          [attr.aria-label]="'Patrimonio al cierre de ' + punto.mes.etiquetaLarga + ': ' + (punto.mes.balanceCierre | moneda)"
+          (mouseenter)="indiceActivo.set(i)" (focus)="indiceActivo.set(i)" (blur)="indiceActivo.set(null)" />
+      }
+    </svg>
+
+    <details class="grafica-tabla">
+      <summary>Ver como tabla</summary>
+      <table>
+        <thead>
+          <tr><th scope="col">Mes</th><th scope="col">Variación</th><th scope="col">Patrimonio al cierre</th></tr>
+        </thead>
+        <tbody>
+          @for (mes of meses(); track mes.clave) {
+            <tr>
+              <td>{{ mes.etiquetaLarga }}</td>
+              <td>{{ mes.neto | moneda }}</td>
+              <td>{{ mes.balanceCierre | moneda }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </details>
+  }
+</article>

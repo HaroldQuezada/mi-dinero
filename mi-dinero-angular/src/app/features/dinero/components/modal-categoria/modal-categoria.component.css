@@ -1,0 +1,30 @@
+.vista-previa {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background:
+    linear-gradient(90deg, var(--color-categoria) 0 0.25rem, transparent 0.25rem),
+    var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  transition: background-color var(--duracion-media) ease;
+}
+
+.vista-previa-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--color-categoria);
+  background: color-mix(in srgb, var(--color-categoria) 16%, transparent);
+  border-radius: 0.5rem;
+  transition: color var(--duracion-media) ease, background-color var(--duracion-media) ease;
+}
+
+.vista-previa-nombre {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}

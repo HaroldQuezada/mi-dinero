@@ -1,0 +1,115 @@
+<!-- Prioridad visual: 1) métricas clave, 2) comparativas, 3) detalle del mes -->
+@let p = service.patrimonio();
+<section class="kpis" aria-label="Métricas clave">
+  <app-stat-card class="kpi-hero" etiqueta="Patrimonio neto" subetiqueta="Débito + inversión + ahorro − crédito"
+    [valor]="p.patrimonioNeto" [destacada]="true" [hero]="true"
+    [tono]="p.patrimonioNeto < 0 ? 'negativo' : 'neutro'">
+    <p class="desglose-patrimonio">
+      <span>Activos <strong>{{ p.activos | moneda }}</strong></span>
+      <span>Deuda en tarjetas <strong class="negativo">{{ p.deudaCredito | moneda }}</strong></span>
+    </p>
+  </app-stat-card>
+
+  <app-stat-card etiqueta="Saldo disponible" subetiqueta="Cuentas de débito" [icono]="iconos.cuentaDebito"
+    [valor]="p.saldoDisponible" [tono]="p.saldoDisponible < 0 ? 'negativo' : 'neutro'">
+    <button type="button" class="btn-ajustar-saldo" (click)="modalAjusteAbierto.set(true)">
+      <fa-icon [icon]="iconos.editar" /> Ajustar
+    </button>
+  </app-stat-card>
+  <app-stat-card etiqueta="Disponible para gastar" subetiqueta="Lo que queda del presupuesto de entretenimiento"
+    [icono]="iconos.ocio" [valor]="service.disponibleParaGastar()"
+    [tono]="service.disponibleParaGastar() < 0 ? 'negativo' : 'neutro'" />
+
+  <app-stat-card etiqueta="Ingresos del mes" [icono]="iconos.subida" [valor]="service.ingresosMes()" tono="positivo"
+    [variacion]="variaciones().ingresos" />
+  <app-stat-card etiqueta="Gastos del mes" subetiqueta="Sin contar traslados" [icono]="iconos.bajada"
+    [valor]="service.gastosMes()" tono="negativo" [variacion]="variaciones().gastos" [subirEsBueno]="false" />
+  <app-stat-card etiqueta="Neto del mes" [valor]="netoMes()" [tono]="netoMes() >= 0 ? 'positivo' : 'negativo'"
+    subetiqueta="Ingresos menos gastos" />
+  <app-stat-card etiqueta="Comprometido este mes" [icono]="iconos.calendario" [valor]="service.comprometidoEsteMes()"
+    subetiqueta="Gastos fijos, cuotas y cortes pendientes" />
+</section>
+
+<section class="rejilla-dashboard" aria-label="Gráficas comparativas">
+  <app-grafica-flujo />
+  <app-grafica-balance />
+  <app-grafica-categorias />
+  <app-grafica-presupuesto (configurar)="modalConfiguracionAbierto.set(true)" />
+</section>
+
+<section class="rejilla-dashboard" aria-label="Detalle del mes">
+  <article class="bloque">
+    <h2>Mis cuentas</h2>
+    <ul class="lista-simple">
+      @for (cuenta of service.cuentas(); track cuenta.id) {
+        <li class="fila fila-con-color" [style.--color-categoria]="colorCuenta(cuenta)">
+          <span class="punto-categoria" aria-hidden="true"></span>
+          <div class="fila-info">
+            <span class="fila-titulo">{{ cuenta.nombre }}</span>
+            <span class="fila-detalle">{{ etiquetaTipoCuenta[cuenta.tipo] }}</span>
+          </div>
+          <span class="fila-monto" [class.negativo]="cuenta.saldoActual < 0">{{ cuenta.saldoActual | moneda }}</span>
+        </li>
+      } @empty {
+        <li class="vacio">Aún no tienes cuentas</li>
+      }
+    </ul>
+    <p class="fila-detalle mt-10">
+      Deuda total pendiente (tarjetas y préstamos): <strong>{{ service.deudaTotalPendiente() | moneda }}</strong>
+    </p>
+  </article>
+
+  <article class="bloque">
+    <h2>Últimos movimientos</h2>
+    <ul class="lista-simple">
+      @for (movimiento of ultimosMovimientos(); track movimiento.id) {
+        <li class="fila fila-con-color" [style.--color-categoria]="service.colorDeTransaccion(movimiento)">
+          @if (movimiento.tipo === 'TRASLADO') {
+            <fa-icon class="icono-traslado" [icon]="iconos.traslado" aria-hidden="true" />
+          } @else {
+            <span class="punto-categoria" aria-hidden="true"></span>
+          }
+          <div class="fila-info">
+            <span class="fila-titulo">{{ service.tituloTransaccion(movimiento) }}</span>
+            <span class="fila-detalle">{{ movimiento.fecha | fechaCorta }} · {{ service.cuentasDeTransaccion(movimiento) }}</span>
+          </div>
+          <app-monto-movimiento [movimiento]="movimiento" />
+        </li>
+      } @empty {
+        <li class="vacio">Aún no hay movimientos</li>
+      }
+    </ul>
+  </article>
+
+  <article class="bloque bloque-completo">
+    <h2>Gastos fijos de este mes</h2>
+    <ul class="lista-simple">
+      @for (gasto of service.gastosFijos(); track gasto.id) {
+        <li><app-gasto-fijo-fila [gasto]="gasto" /></li>
+      } @empty {
+        <li class="vacio">No tienes gastos fijos registrados</li>
+      }
+    </ul>
+  </article>
+
+  <article class="bloque bloque-completo">
+    <h2>Metas de ahorro</h2>
+    <div class="rejilla-metas">
+      @for (meta of service.metasAhorro(); track meta.id) {
+        <app-meta-ahorro-card [meta]="meta" (editar)="modalMeta.abrir(meta)" />
+      } @empty {
+        <p class="vacio">No tienes metas de ahorro creadas</p>
+      }
+    </div>
+  </article>
+</section>
+
+@if (modalAjusteAbierto()) {
+  <app-modal-ajuste-saldo (cerrar)="modalAjusteAbierto.set(false)" />
+}
+@if (modalConfiguracionAbierto()) {
+  <app-modal-configuracion (cerrar)="modalConfiguracionAbierto.set(false)" />
+}
+@if (modalMeta.abierto()) {
+  <app-modal-meta [meta]="modalMeta.entidad()" (cerrar)="modalMeta.cerrar()" />
+}

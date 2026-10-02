@@ -1,0 +1,5 @@
+@let tipo = movimiento().tipo;
+<span class="fila-monto" [class.positivo]="tipo === 'INGRESO'" [class.negativo]="tipo === 'GASTO'"
+  [class.texto-muted]="tipo === 'TRASLADO'">
+  {{ signo() }}{{ movimiento().monto | moneda }}
+</span>

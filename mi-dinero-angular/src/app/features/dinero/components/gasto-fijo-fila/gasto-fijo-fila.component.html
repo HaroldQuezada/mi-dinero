@@ -1,0 +1,18 @@
+@let g = gasto();
+<div class="fila fila-con-color" [style.--color-categoria]="color()">
+  <input #casilla type="checkbox" class="checkbox-pagado" [checked]="pagado()"
+    [attr.aria-label]="'Marcar ' + g.nombre + ' como pagado'"
+    (change)="alternarPago(casilla.checked)" />
+  <span class="punto-categoria" aria-hidden="true"></span>
+  <div class="fila-info">
+    <span class="fila-titulo">{{ g.nombre }}</span>
+    @if (conDetalle()) {
+      <span class="fila-detalle">{{ detalle() }}</span>
+    }
+  </div>
+  <span class="fila-monto">{{ g.monto | moneda }}</span>
+  <app-badge-pago [pagado]="pagado()" />
+  @if (conDetalle()) {
+    <app-acciones-fila [nombre]="g.nombre" (editar)="editar.emit()" (eliminar)="eliminar()" />
+  }
+</div>

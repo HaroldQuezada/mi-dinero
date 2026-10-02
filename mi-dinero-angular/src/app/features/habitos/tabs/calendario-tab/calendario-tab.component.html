@@ -1,0 +1,56 @@
+<section aria-labelledby="titulo-calendario">
+  <header class="panel-header">
+    <h2 id="titulo-calendario">Calendario</h2>
+    <label class="selector-habito">
+      <span class="sr-only">Hábito</span>
+      <select [(ngModel)]="habitoSeleccionadoId">
+        @for (habito of habitos(); track habito.id) {
+          <option [value]="habito.id">{{ habito.nombre }}</option>
+        } @empty {
+          <option value="">Sin hábitos</option>
+        }
+      </select>
+    </label>
+  </header>
+
+  <div class="rachas-resumen">
+    <article class="bloque-racha">
+      <span class="racha-label">Racha actual</span>
+      <span class="racha-valor">{{ rachaActual() }}</span>
+    </article>
+    <article class="bloque-racha">
+      <span class="racha-label">Racha más larga</span>
+      <span class="racha-valor">{{ rachaMasLarga() }}</span>
+    </article>
+  </div>
+
+  <div class="calendario-nav">
+    <button type="button" class="btn-secundario btn-pequeno" aria-label="Mes anterior"
+      (click)="cambiarMes(-1)">←</button>
+    <span>{{ titulo() }}</span>
+    <button type="button" class="btn-secundario btn-pequeno" aria-label="Mes siguiente"
+      (click)="cambiarMes(1)">→</button>
+  </div>
+
+  @if (habitoSeleccionado()) {
+    <div class="calendario-grid">
+      @for (dia of cabeceraDias; track dia) {
+        <span class="dia-cabecera">{{ dia }}</span>
+      }
+      @for (celda of celdas(); track celda.clave) {
+        <div class="dia-celda"
+          [class.dia-completado]="celda.estado === 'completado'"
+          [class.dia-saltado]="celda.estado === 'saltado'"
+          [class.dia-vacia]="celda.dia === null">{{ celda.dia }}</div>
+      }
+    </div>
+
+    <ul class="calendario-leyenda">
+      <li><i class="punto punto-completado"></i> Completado</li>
+      <li><i class="punto punto-saltado"></i> Saltado</li>
+      <li><i class="punto punto-vacio"></i> Sin marcar</li>
+    </ul>
+  } @else {
+    <p class="vacio">Crea un hábito primero</p>
+  }
+</section>

@@ -1,0 +1,52 @@
+<article class="bloque">
+  <header class="panel-header panel-header-sm">
+    <h2 class="titulo-sin-margen">Presupuesto vs gastado</h2>
+    <button type="button" class="btn-secundario btn-pequeno" (click)="configurar.emit()">
+      <fa-icon [icon]="iconos.configurar" /> Configurar
+    </button>
+  </header>
+
+  <p class="fila-detalle mb-12">
+    Ingreso mensual: <strong>{{ service.configuracion().ingreso_mensual | moneda }}</strong>
+  </p>
+
+  @if (filas().length === 0) {
+    <p class="vacio">Configura tus categorías en la pestaña Presupuesto</p>
+  } @else {
+    <ul class="grafica-leyenda-linea">
+      <li><span class="muestra-serie" style="--color-serie: var(--color-texto-suave)"></span>Gastado (color de la categoría)</li>
+      <li><span class="muestra-serie muestra-pista"></span>Presupuesto</li>
+    </ul>
+
+    <ul class="filas-presupuesto">
+      @for (fila of filas(); track fila.resumen.categoria.id) {
+        @let r = fila.resumen;
+        <li class="fila-presupuesto" [style.--color-categoria]="r.color">
+          <div class="fila-presupuesto-texto">
+            <span class="punto-categoria" aria-hidden="true"></span>
+            <span class="fila-presupuesto-nombre">{{ r.categoria.nombre }}</span>
+            <span class="fila-presupuesto-cifras">
+              <strong>{{ r.gastado | moneda }}</strong> / {{ r.presupuesto | moneda }}
+            </span>
+          </div>
+
+          <div class="barra-comparativa" role="img"
+            [attr.aria-label]="r.categoria.nombre + ': gastado ' + (r.gastado | moneda) + ' de ' + (r.presupuesto | moneda)">
+            <span class="barra-pista" [style.width.%]="fila.anchoPresupuesto"></span>
+            <span class="barra-gastado" [style.width.%]="fila.anchoGastado"></span>
+            @if (fila.anchoExceso > 0) {
+              <span class="barra-exceso" [style.left.%]="fila.inicioExceso" [style.width.%]="fila.anchoExceso"></span>
+            }
+          </div>
+
+          @if (r.alerta) {
+            <p class="alerta-texto" [class.texto-advertencia]="r.estado === 'advertencia'"
+              [class.texto-negativo]="r.estado === 'excedido'">
+              {{ r.alerta }} · {{ fila.usoReal | porcentaje }} usado
+            </p>
+          }
+        </li>
+      }
+    </ul>
+  }
+</article>

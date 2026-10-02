@@ -1,0 +1,18 @@
+<header class="topbar">
+  <a [routerLink]="rutaInicio" class="btn-header" aria-label="Ir al inicio">
+    <fa-icon [icon]="iconos.inicio" />
+    <span class="btn-header-texto">Inicio</span>
+  </a>
+
+  <h1 class="topbar-titulo">{{ titulo() }}</h1>
+
+  <div class="topbar-acciones">
+    <!-- Acciones propias del módulo (p. ej. menú de respaldo) -->
+    <ng-content />
+    <app-boton-tema />
+    <button type="button" class="btn-header btn-header-peligro" aria-label="Cerrar sesión" (click)="salir()">
+      <fa-icon [icon]="iconos.salir" />
+      <span class="btn-header-texto">Salir</span>
+    </button>
+  </div>
+</header>

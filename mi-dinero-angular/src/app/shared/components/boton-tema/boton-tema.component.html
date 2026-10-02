@@ -1,0 +1,9 @@
+<button type="button" class="boton-tema" role="switch" [class.flotante]="flotante()"
+  [attr.aria-checked]="esOscuro()" [attr.aria-label]="etiqueta()" [attr.title]="etiqueta()"
+  (click)="alternar()">
+  <span class="pista" aria-hidden="true">
+    <span class="perilla">
+      <fa-icon [icon]="esOscuro() ? iconos.temaOscuro : iconos.temaClaro" />
+    </span>
+  </span>
+</button>

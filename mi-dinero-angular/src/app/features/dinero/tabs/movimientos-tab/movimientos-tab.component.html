@@ -1,0 +1,51 @@
+<section aria-labelledby="titulo-movimientos">
+  <header class="panel-header">
+    <h2 id="titulo-movimientos">Movimientos</h2>
+    <button type="button" class="btn-primario" (click)="modal.abrir()">
+      <fa-icon [icon]="iconos.agregar" /> Registrar
+    </button>
+  </header>
+
+  <div class="filtro-mes">
+    <app-campo-mes etiqueta="Mes" [(valor)]="filtroMes" />
+    <p class="resumen-filtro" aria-live="polite">
+      <span>Ingresos <strong class="positivo">{{ totales().ingresos | moneda }}</strong></span>
+      <span>Gastos <strong class="negativo">{{ totales().gastos | moneda }}</strong></span>
+      <span>Traslados <strong>{{ totales().traslados | moneda }}</strong></span>
+    </p>
+  </div>
+
+  <div class="filtro-tipos" role="group" aria-label="Filtrar por tipo">
+    @for (tipo of tipos; track tipo.valor) {
+      <button type="button" class="chip-filtro" [attr.aria-pressed]="filtroTipo() === tipo.valor"
+        (click)="alternarFiltro(tipo.valor)">{{ tipo.etiqueta }}s</button>
+    }
+  </div>
+
+  <ul class="lista-tabla">
+    @for (movimiento of movimientosFiltrados(); track movimiento.id) {
+      <li class="fila fila-adaptable fila-con-color" [style.--color-categoria]="service.colorDeTransaccion(movimiento)">
+        @if (movimiento.tipo === 'TRASLADO') {
+          <fa-icon class="icono-traslado" [icon]="iconos.traslado" aria-hidden="true" />
+        } @else {
+          <span class="punto-categoria" aria-hidden="true"></span>
+        }
+        <div class="fila-info">
+          <span class="fila-titulo">{{ service.tituloTransaccion(movimiento) }}</span>
+          <span class="fila-detalle">
+            {{ movimiento.fecha | fechaCorta }} · {{ service.detalleTransaccion(movimiento) }}
+          </span>
+        </div>
+        <app-monto-movimiento [movimiento]="movimiento" />
+        <app-acciones-fila [nombre]="service.tituloTransaccion(movimiento)" (editar)="modal.abrir(movimiento)"
+          (eliminar)="eliminar(movimiento)" />
+      </li>
+    } @empty {
+      <li class="vacio">No hay movimientos {{ filtroTipo() ? 'de este tipo ' : '' }}este mes</li>
+    }
+  </ul>
+</section>
+
+@if (modal.abierto()) {
+  <app-modal-movimiento [movimiento]="modal.entidad()" (cerrar)="modal.cerrar()" />
+}

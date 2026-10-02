@@ -1,0 +1,7 @@
+<nav class="tabs" [attr.aria-label]="etiqueta()">
+  @for (tab of tabs(); track tab.id) {
+    <button type="button" class="tab" [class.activo]="activa() === tab.id"
+      [attr.aria-current]="activa() === tab.id ? 'page' : null"
+      (click)="activa.set(tab.id)">{{ tab.etiqueta }}</button>
+  }
+</nav>

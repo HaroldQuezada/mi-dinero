@@ -1,0 +1,21 @@
+<div class="modal-overlay" [class.saliendo]="saliendo()" (click)="cerrarAnimado()"
+  (animationend)="alTerminarAnimacion($event)">
+  <form class="modal-box" role="dialog" aria-modal="true" [attr.aria-labelledby]="idTitulo"
+    (click)="$event.stopPropagation()" (submit)="enviar($event)">
+    <header class="modal-header">
+      <h3 [id]="idTitulo">{{ titulo() }}</h3>
+      <button type="button" class="btn-icono" aria-label="Cerrar" (click)="cerrarAnimado()">
+        <fa-icon [icon]="iconos.cerrar" />
+      </button>
+    </header>
+
+    <div>
+      <ng-content />
+    </div>
+
+    <footer class="modal-acciones">
+      <button type="button" class="btn-secundario" (click)="cerrarAnimado()">{{ textoCancelar() }}</button>
+      <button type="submit" class="btn-primario">{{ textoConfirmar() }}</button>
+    </footer>
+  </form>
+</div>

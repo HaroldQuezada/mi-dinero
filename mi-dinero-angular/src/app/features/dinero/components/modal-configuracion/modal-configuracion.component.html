@@ -1,0 +1,24 @@
+<app-modal titulo="Configurar ingreso y distribución" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <label class="campo">
+    <span class="campo-etiqueta">Ingreso mensual base</span>
+    <input type="number" [(ngModel)]="ingreso" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <fieldset class="campo mt-16">
+    <legend class="seccion-titulo">Porcentajes por categoría</legend>
+    @for (fila of filas(); track fila.categoria.id) {
+      <label class="campo">
+        <span class="campo-etiqueta">{{ fila.categoria.nombre }}</span>
+        <span class="campo-en-linea">
+          <input type="number" class="input-corto" min="0" max="100" inputmode="decimal"
+            [ngModel]="fila.porcentaje" (ngModelChange)="actualizarPorcentaje(fila.categoria.id, $event)" />
+          <span>%</span>
+          <span class="hint">= {{ fila.monto | moneda }}</span>
+        </span>
+      </label>
+    }
+    <p class="hint mt-8" [class.positivo]="aviso().correcta" [class.texto-advertencia]="!aviso().correcta">
+      {{ aviso().texto }}
+    </p>
+  </fieldset>
+</app-modal>

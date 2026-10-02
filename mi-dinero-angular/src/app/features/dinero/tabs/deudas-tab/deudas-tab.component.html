@@ -1,0 +1,23 @@
+<section aria-labelledby="titulo-deudas">
+  <header class="panel-header">
+    <h2 id="titulo-deudas">Deudas</h2>
+    <button type="button" class="btn-primario" (click)="modalDeuda.abrir()">
+      <fa-icon [icon]="iconos.agregar" /> Agregar deuda
+    </button>
+  </header>
+
+  <div class="lista-tarjetas">
+    @for (deuda of service.deudas(); track deuda.id) {
+      <app-deuda-card [deuda]="deuda" (editar)="modalDeuda.abrir(deuda)" (pagar)="modalPago.abrir(deuda)" />
+    } @empty {
+      <p class="vacio">No tienes préstamos registrados. Las tarjetas de crédito están en la pestaña Cuentas.</p>
+    }
+  </div>
+</section>
+
+@if (modalDeuda.abierto()) {
+  <app-modal-deuda [deuda]="modalDeuda.entidad()" (cerrar)="modalDeuda.cerrar()" />
+}
+@if (modalPago.abierto() && modalPago.entidad(); as deuda) {
+  <app-modal-pago [deuda]="deuda" (cerrar)="modalPago.cerrar()" />
+}

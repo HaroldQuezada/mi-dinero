@@ -1,0 +1,28 @@
+<app-boton-tema [flotante]="true" />
+
+<div class="portada">
+  <header class="portada-header">
+    <h1>{{ nombreApp }}</h1>
+    <p class="subtitulo">Panel personal</p>
+  </header>
+
+  <main>
+    <nav aria-label="Módulos">
+      <ul class="modulos">
+        @for (modulo of modulos; track modulo.ruta) {
+          <li>
+            <a [routerLink]="modulo.ruta" class="modulo-card">
+              <span class="modulo-icono" aria-hidden="true">{{ modulo.icono }}</span>
+              <span class="modulo-texto">
+                <strong>{{ modulo.titulo }}</strong>
+                <span>{{ modulo.descripcion }}</span>
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+  </main>
+
+  <app-page-footer />
+</div>

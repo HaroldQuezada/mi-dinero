@@ -1,0 +1,13 @@
+/* Sección opcional de datos extra */
+.campo-extra {
+  margin: 0.25rem 0 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--color-texto-suave);
+}
+
+.campo-extra summary {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--color-primario);
+  cursor: pointer;
+}

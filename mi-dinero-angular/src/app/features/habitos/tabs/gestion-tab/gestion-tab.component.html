@@ -1,0 +1,27 @@
+<section aria-labelledby="titulo-gestion">
+  <header class="panel-header">
+    <h2 id="titulo-gestion">Mis hábitos</h2>
+    <button type="button" class="btn-primario" (click)="modal.abrir()">+ Agregar</button>
+  </header>
+
+  <ul class="lista-tabla">
+    @for (habito of service.habitos(); track habito.id) {
+      <li class="fila fila-adaptable">
+        <div class="fila-info">
+          <span class="fila-titulo">{{ habito.nombre }}</span>
+          <span class="fila-detalle">
+            {{ habito.categoria }} · {{ service.descripcionFrecuencia(habito.frecuencia) }}
+          </span>
+        </div>
+        <span class="badge" [class]="'badge-' + habito.prioridad">{{ habito.prioridad }}</span>
+        <app-acciones-fila [nombre]="habito.nombre" (editar)="modal.abrir(habito)" (eliminar)="eliminar(habito)" />
+      </li>
+    } @empty {
+      <li class="vacio">No tienes hábitos creados aún</li>
+    }
+  </ul>
+</section>
+
+@if (modal.abierto()) {
+  <app-modal-habito [habito]="modal.entidad()" (cerrar)="modal.cerrar()" />
+}

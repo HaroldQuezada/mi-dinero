@@ -1,0 +1,117 @@
+.selector-habito select {
+  max-width: 12rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+}
+
+.rachas-resumen {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.bloque-racha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.875rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.racha-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-texto-suave);
+}
+
+.racha-valor {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.calendario-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.dia-cabecera {
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-texto-suave);
+}
+
+.dia-celda {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--color-texto-suave);
+  background: var(--color-superficie-alta);
+  border-radius: 0.375rem;
+}
+
+.dia-celda.dia-completado {
+  background: var(--color-positivo);
+  color: #0d2616;
+  font-weight: 700;
+}
+
+.dia-celda.dia-saltado {
+  background: var(--color-advertencia);
+  color: #2e2207;
+  font-weight: 700;
+}
+
+.dia-celda.dia-vacia {
+  background: transparent;
+}
+
+.calendario-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+  font-size: 0.75rem;
+  color: var(--color-texto-suave);
+  list-style: none;
+}
+
+.punto {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.25rem;
+  border-radius: 0.1875rem;
+}
+
+.punto-completado { background: var(--color-positivo); }
+.punto-saltado { background: var(--color-advertencia); }
+.punto-vacio {
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+}
+
+@media (min-width: 37.5rem) {
+  .calendario-grid {
+    gap: 0.375rem;
+  }
+}

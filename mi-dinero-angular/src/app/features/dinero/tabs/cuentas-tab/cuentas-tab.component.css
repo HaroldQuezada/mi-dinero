@@ -1,0 +1,25 @@
+.acciones-cuentas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Mobile-first: una columna; dos desde md y tres en escritorio */
+.rejilla-cuentas {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 48rem) {
+  .rejilla-cuentas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .rejilla-cuentas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,70 @@
+/* Mobile-first: la cifra principal ocupa todo el ancho y las demás van de a dos.
+   En escritorio: la principal ocupa dos columnas y el resto se reparte a su lado. */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.kpi-hero {
+  grid-column: 1 / -1;
+}
+
+.rejilla-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 1rem;
+}
+
+.rejilla-dashboard > * {
+  min-width: 0;
+}
+
+.bloque-completo {
+  grid-column: 1 / -1;
+}
+
+.rejilla-metas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0 0.75rem;
+}
+
+/* La animación de entrada de las métricas se escalona */
+.kpis > :nth-child(2) { --retraso-entrada: 40ms; }
+.kpis > :nth-child(3) { --retraso-entrada: 80ms; }
+.kpis > :nth-child(4) { --retraso-entrada: 120ms; }
+.kpis > :nth-child(5) { --retraso-entrada: 160ms; }
+.kpis > :nth-child(6) { --retraso-entrada: 200ms; }
+.kpis > :nth-child(7) { --retraso-entrada: 240ms; }
+
+@media (min-width: 48rem) {
+  .kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* Fila 1: principal + balance + deuda; fila 2: las cuatro cifras del mes */
+  .kpi-hero {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 64rem) {
+  .rejilla-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.desglose-patrimonio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-texto-suave);
+}
+
+.desglose-patrimonio strong {
+  color: var(--color-texto);
+}

@@ -1,0 +1,19 @@
+<button type="button" class="btn-header" aria-label="Respaldo de datos" [disabled]="ocupado()"
+  [matMenuTriggerFor]="menu">
+  <fa-icon [icon]="iconos.respaldo" [animation]="ocupado() ? 'beat-fade' : undefined" />
+  <span class="btn-header-texto">Respaldo</span>
+</button>
+
+<mat-menu #menu="matMenu" xPosition="before">
+  <button mat-menu-item type="button" (click)="exportar()">
+    <fa-icon [icon]="iconos.exportar" class="icono-menu" />
+    <span>Exportar datos (.json)</span>
+  </button>
+  <button mat-menu-item type="button" (click)="elegirArchivo()">
+    <fa-icon [icon]="iconos.importar" class="icono-menu" />
+    <span>Importar respaldo…</span>
+  </button>
+</mat-menu>
+
+<input #selectorArchivo type="file" accept="application/json,.json" class="sr-only" tabindex="-1"
+  aria-hidden="true" (change)="importar()" />

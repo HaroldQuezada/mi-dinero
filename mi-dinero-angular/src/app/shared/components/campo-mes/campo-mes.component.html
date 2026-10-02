@@ -1,0 +1,9 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic" class="campo-fecha">
+  <mat-label>{{ etiqueta() }}</mat-label>
+  <!-- Solo lectura: el mes se elige en el calendario, que se abre al hacer clic -->
+  <input matInput readonly [matDatepicker]="selector" [value]="fecha()" (click)="selector.open()" />
+  <mat-datepicker-toggle matIconSuffix [for]="selector">
+    <fa-icon matDatepickerToggleIcon [icon]="iconos.calendario" />
+  </mat-datepicker-toggle>
+  <mat-datepicker #selector startView="year" (monthSelected)="elegirMes($event, selector)" />
+</mat-form-field>

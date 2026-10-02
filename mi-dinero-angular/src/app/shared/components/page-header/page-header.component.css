@@ -1,0 +1,42 @@
+/* Los botones (.btn-header) viven en styles.css porque los módulos también los
+   proyectan dentro del encabezado. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--color-superficie) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.topbar-titulo {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+@media (min-width: 37.5rem) {
+  .topbar {
+    gap: 0.75rem;
+    padding: 0.625rem 1.25rem;
+  }
+
+  .topbar-titulo {
+    font-size: 1.0625rem;
+  }
+}

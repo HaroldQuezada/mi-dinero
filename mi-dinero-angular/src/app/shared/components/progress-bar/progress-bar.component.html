@@ -1,0 +1,5 @@
+<div class="barra" [class.barra-delgada]="delgada()" role="progressbar"
+  aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="ancho()"
+  [attr.aria-label]="etiqueta()" [attr.title]="ancho() + '%'">
+  <div class="barra-relleno" [class]="claseEstado()" [style.width.%]="ancho()"></div>
+</div>

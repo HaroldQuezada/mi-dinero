@@ -1,0 +1,51 @@
+/* Mobile-first: una columna; desde md, las categorías van en rejilla */
+.acciones-categorias,
+.acciones-vacio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.acciones-vacio {
+  justify-content: center;
+}
+
+.rejilla-categorias {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.chips-ingreso {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.chip-ingreso {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.125rem 0 0.75rem;
+  background: color-mix(in srgb, var(--color-categoria) 10%, var(--color-superficie-alta));
+  border: 1px solid var(--color-borde);
+  border-radius: 1.25rem;
+}
+
+.chip-ingreso-nombre {
+  padding: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.chip-ingreso .btn-icono {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+}
+
+@media (min-width: 48rem) {
+  .rejilla-categorias {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,44 @@
+<app-modal [titulo]="titulo()" (cerrar)="cerrar.emit()" (confirmar)="guardar()">
+  <label class="campo">
+    <span class="campo-etiqueta">Nombre</span>
+    <input type="text" [(ngModel)]="nombre" placeholder="Ej: Leer, Gym, Agua" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Categoría</span>
+    <select [(ngModel)]="categoria">
+      @for (opcion of categorias; track opcion) {
+        <option [value]="opcion">{{ opcion }}</option>
+      }
+    </select>
+  </label>
+
+  <app-toggle-opciones etiqueta="Frecuencia" [opciones]="tiposFrecuencia" [(valor)]="tipoFrecuencia" />
+
+  @if (tipoFrecuencia() === 'dias') {
+    <fieldset class="campo">
+      <legend class="sr-only">Días de la semana</legend>
+      <div class="dias-semana-selector">
+        @for (dia of diasSemana; track dia) {
+          @let activo = diasActivos().includes(dia);
+          <button type="button" class="dia-toggle" [class.activo]="activo" [attr.aria-pressed]="activo"
+            (click)="alternarDia(dia)">{{ diasSemanaLabel[dia] }}</button>
+        }
+      </div>
+    </fieldset>
+  }
+
+  <label class="campo">
+    <span class="campo-etiqueta">Hora objetivo (opcional)</span>
+    <input type="time" [(ngModel)]="hora" />
+  </label>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Prioridad</span>
+    <select [(ngModel)]="prioridad">
+      @for (opcion of prioridades; track opcion.valor) {
+        <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+      }
+    </select>
+  </label>
+</app-modal>

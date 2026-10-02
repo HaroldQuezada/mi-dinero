@@ -1,0 +1,52 @@
+<section aria-labelledby="titulo-cuentas">
+  <header class="panel-header">
+    <h2 id="titulo-cuentas">Cuentas</h2>
+    <div class="acciones-cuentas">
+      <button type="button" class="btn-secundario" (click)="modalTraslado.abrir()">
+        <fa-icon [icon]="iconos.traslado" /> Traslado
+      </button>
+      <button type="button" class="btn-primario" (click)="modalCuenta.abrir()">
+        <fa-icon [icon]="iconos.agregar" /> Cuenta
+      </button>
+    </div>
+  </header>
+
+  @let p = service.patrimonio();
+  <div class="tarjetas">
+    <app-stat-card etiqueta="Patrimonio neto" subetiqueta="Débito + inversión + ahorro − crédito"
+      [valor]="p.patrimonioNeto" [destacada]="true" [tono]="p.patrimonioNeto < 0 ? 'negativo' : 'neutro'" />
+    <app-stat-card etiqueta="Saldo disponible" subetiqueta="Cuentas de débito" [icono]="iconos.cuentaDebito"
+      [valor]="p.saldoDisponible" />
+    <app-stat-card etiqueta="Activos" subetiqueta="Débito, inversión y ahorro" [icono]="iconos.ahorro"
+      [valor]="p.activos" />
+    <app-stat-card etiqueta="Deuda en tarjetas" [icono]="iconos.tarjeta" [valor]="p.deudaCredito"
+      [tono]="p.deudaCredito > 0 ? 'negativo' : 'neutro'" />
+  </div>
+
+  <div class="rejilla-cuentas">
+    @for (cuenta of service.cuentas(); track cuenta.id) {
+      <app-cuenta-card [cuenta]="cuenta" (editar)="modalCuenta.abrir(cuenta)" (ajustar)="modalAjuste.abrir(cuenta)"
+        (trasladar)="modalTraslado.abrir(cuenta)" (registrarCorte)="modalCorte.abrir(cuenta)"
+        (pagar)="modalPago.abrir(cuenta)" />
+    } @empty {
+      <p class="vacio">Aún no tienes cuentas. Crea la primera para registrar movimientos.</p>
+    }
+  </div>
+</section>
+
+@if (modalCuenta.abierto()) {
+  <app-modal-cuenta [cuenta]="modalCuenta.entidad()" (cerrar)="modalCuenta.cerrar()" />
+}
+@if (modalAjuste.abierto()) {
+  <app-modal-ajuste-saldo [cuentaInicialId]="modalAjuste.entidad()?.id ?? null" (cerrar)="modalAjuste.cerrar()" />
+}
+@if (modalCorte.abierto() && modalCorte.entidad(); as tarjeta) {
+  <app-modal-corte [tarjeta]="tarjeta" (cerrar)="modalCorte.cerrar()" />
+}
+@if (modalPago.abierto() && modalPago.entidad(); as tarjeta) {
+  <app-modal-pago-tarjeta [tarjeta]="tarjeta" (cerrar)="modalPago.cerrar()" />
+}
+@if (modalTraslado.abierto()) {
+  <app-modal-movimiento tipoInicial="TRASLADO" [cuentaOrigenInicial]="modalTraslado.entidad()?.id ?? null"
+    (cerrar)="modalTraslado.cerrar()" />
+}

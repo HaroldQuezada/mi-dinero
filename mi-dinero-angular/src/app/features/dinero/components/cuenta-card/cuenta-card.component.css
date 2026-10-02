@@ -1,0 +1,73 @@
+:host {
+  display: block;
+}
+
+/* La franja izquierda y el icono llevan el color de la cuenta (--color-categoria) */
+.tarjeta-cuenta {
+  display: flex;
+  flex-direction: column;
+  padding: 0.875rem 0.875rem 0.875rem 1.125rem;
+  background:
+    linear-gradient(90deg, var(--color-categoria) 0 0.25rem, transparent 0.25rem),
+    var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  animation: entrar-deslizando var(--duracion-media) var(--curva-suave) backwards;
+  transition:
+    transform var(--duracion-media) var(--curva-suave),
+    box-shadow var(--duracion-media) ease;
+}
+
+.tarjeta-cuenta:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-elevada);
+}
+
+.tarjeta-cuenta-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.icono-cuenta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  font-size: 1rem;
+  color: var(--color-categoria);
+  background: color-mix(in srgb, var(--color-categoria) 16%, transparent);
+  border-radius: 0.625rem;
+}
+
+.tarjeta-cuenta-titulo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tarjeta-cuenta-saldo {
+  display: flex;
+  flex-direction: column;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.tarjeta-cuenta-etiqueta {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  color: var(--color-texto-suave);
+}
+
+.tarjeta-cuenta-saldo strong {
+  font-size: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.deuda-acciones {
+  margin-top: auto;
+  padding-top: 0.75rem;
+}

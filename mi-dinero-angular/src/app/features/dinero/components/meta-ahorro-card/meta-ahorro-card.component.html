@@ -1,0 +1,25 @@
+@let m = meta();
+<article class="subtarjeta">
+  <header class="subtarjeta-header">
+    <h3 class="subtarjeta-titulo">{{ m.nombre }}</h3>
+    <app-acciones-fila [nombre]="m.nombre" (editar)="editar.emit()" (eliminar)="eliminar()" />
+  </header>
+
+  <dl class="cifras">
+    <div>
+      <dt>Objetivo</dt>
+      <dd>{{ m.valor_objetivo | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Ahorrado</dt>
+      <dd>{{ m.valor_ahorrado | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Falta</dt>
+      <dd>{{ info().falta | moneda }}</dd>
+    </div>
+  </dl>
+
+  <app-progress-bar [porcentaje]="info().porcentaje" estado="ok" [etiqueta]="'Avance de ' + m.nombre" />
+  <p class="texto-meta">{{ info().porcentaje | porcentaje }} completado{{ info().fechaObjetivoTexto }}</p>
+</article>

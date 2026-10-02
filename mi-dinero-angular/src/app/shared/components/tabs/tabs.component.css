@@ -1,0 +1,49 @@
+/* En móvil las pestañas se desplazan horizontalmente */
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  padding: 0 0.5rem;
+  background: var(--color-superficie);
+  border-bottom: 1px solid var(--color-borde);
+  scrollbar-width: none;
+}
+
+.tab {
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-texto-suave);
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--duracion-rapida) ease,
+    border-color var(--duracion-media) var(--curva-suave),
+    background-color var(--duracion-rapida) ease;
+}
+
+.tab:hover:not(.activo) {
+  color: var(--color-texto);
+  background: var(--color-superficie-alta);
+}
+
+.tab.activo {
+  color: var(--color-primario);
+  border-bottom-color: var(--color-primario);
+  font-weight: 600;
+}
+
+@media (min-width: 37.5rem) {
+  .tabs {
+    padding: 0 0.75rem;
+  }
+
+  .tab {
+    padding: 0.75rem 1rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  .tabs {
+    justify-content: center;
+  }
+}

@@ -1,0 +1,17 @@
+<app-modal [titulo]="titulo()" textoConfirmar="Confirmar pago" (cerrar)="cerrar.emit()" (confirmar)="confirmar()">
+  <p class="fila-detalle mb-14">
+    Deuda actual: <strong>{{ deuda() | moneda }}</strong>
+    @if (montoCorte() > 0) {
+      · Corte pendiente: <strong>{{ montoCorte() | moneda }}</strong>
+    }
+  </p>
+
+  <label class="campo">
+    <span class="campo-etiqueta">Monto a pagar</span>
+    <input type="number" [(ngModel)]="monto" min="0" placeholder="0" inputmode="numeric" />
+  </label>
+
+  <app-selector-cuenta etiqueta="Pagar desde" [excluir]="tarjeta().id" [(valor)]="cuentaOrigenId" />
+
+  <p class="hint">Se registra como un traslado hacia la tarjeta: no cuenta como gasto del mes.</p>
+</app-modal>

@@ -1,0 +1,1150 @@
+/* ============================================
+   ESTILOS BASE COMPARTIDOS — Mi Vida
+   Tema oscuro (por defecto) y claro mediante [data-tema] en <html>, que gestiona
+   TemaService. Aquí viven los tokens, el reset, las animaciones y las clases que
+   usan varios componentes; lo específico va en el .css de cada componente.
+
+   Mobile-first. Breakpoints (min-width):
+     sm  37.5rem (600px)  — teléfonos grandes / tablets pequeñas
+     md  48rem   (768px)  — tablets
+     lg  64rem   (1024px) — escritorio
+============================================ */
+
+:root {
+  color-scheme: dark;
+  --color-fondo: #14161a;
+  --color-superficie: #1d2026;
+  --color-superficie-alta: #262a32;
+  --color-borde: #33373f;
+  --color-texto: #f0f1f3;
+  --color-texto-suave: #9aa0ab;
+  --color-primario: #5b8def;
+  --color-primario-hover: #4575d6;
+  --color-primario-suave: rgba(91, 141, 239, 0.12);
+  --color-positivo: #4ade80;
+  --color-positivo-suave: rgba(74, 222, 128, 0.15);
+  --color-negativo: #f87171;
+  --color-negativo-suave: rgba(248, 113, 113, 0.15);
+  --color-advertencia: #fbbf24;
+  --color-advertencia-suave: rgba(251, 191, 36, 0.15);
+  --color-neutro-suave: rgba(154, 160, 171, 0.15);
+  --color-velo: rgba(0, 0, 0, 0.6);
+  --color-grilla: #2c3038;
+  --radio: 0.625rem;
+  --sombra: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --sombra-elevada: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.45);
+  --ancho-contenido: 56.25rem;
+  --ancho-contenido-ancho: 72rem;
+  --ancho-contenido-angosto: 43.75rem;
+
+  /* Paleta categórica de gráficas y categorías (orden fijo, validado para
+     daltonismo sobre la superficie oscura). Se usa como var(--serie-N). */
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+  --serie-4: #c98500;
+  --serie-5: #d55181;
+  --serie-6: #008300;
+  --serie-7: #9085e9;
+  --serie-8: #e66767;
+
+  /* Movimiento */
+  --duracion-rapida: 150ms;
+  --duracion-media: 250ms;
+  --curva-suave: cubic-bezier(0.2, 0, 0, 1);
+  --curva-salida: cubic-bezier(0.3, 0, 0.8, 0.15);
+}
+
+:root[data-tema='claro'] {
+  color-scheme: light;
+  --color-fondo: #f3f4f7;
+  --color-superficie: #ffffff;
+  --color-superficie-alta: #f0f2f6;
+  --color-borde: #dde1e8;
+  --color-texto: #16181d;
+  --color-texto-suave: #5b6270;
+  --color-primario: #2a6fdb;
+  --color-primario-hover: #2159b3;
+  --color-primario-suave: rgba(42, 111, 219, 0.1);
+  --color-positivo: #15803d;
+  --color-positivo-suave: rgba(21, 128, 61, 0.12);
+  --color-negativo: #dc2626;
+  --color-negativo-suave: rgba(220, 38, 38, 0.1);
+  --color-advertencia: #b45309;
+  --color-advertencia-suave: rgba(217, 119, 6, 0.12);
+  --color-neutro-suave: rgba(91, 98, 112, 0.12);
+  --color-velo: rgba(15, 23, 42, 0.45);
+  --color-grilla: #e6e8ee;
+  --sombra: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --sombra-elevada: 0 0.75rem 2rem rgba(16, 24, 40, 0.16);
+
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
+  --serie-5: #e87ba4;
+  --serie-6: #008300;
+  --serie-7: #4a3aa7;
+  --serie-8: #e34948;
+}
+
+/* Activa solo mientras se cambia de tema (TemaService) para animar los colores */
+.transicion-tema,
+.transicion-tema *,
+.transicion-tema *::before,
+.transicion-tema *::after {
+  transition:
+    background-color var(--duracion-media) ease,
+    border-color var(--duracion-media) ease,
+    color var(--duracion-media) ease,
+    fill var(--duracion-media) ease !important;
+}
+
+/* ============================================
+   RESET Y ELEMENTOS BASE
+============================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  line-height: 1.5;
+  color: var(--color-texto);
+  background: var(--color-fondo);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 1rem en móvil evita que iOS haga zoom al enfocar un campo */
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--color-texto);
+  background: var(--color-superficie-alta);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-texto-suave);
+}
+
+fieldset {
+  min-width: 0;
+  border: 0;
+}
+
+/* Visible solo para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ============================================
+   ESTRUCTURA DE PÁGINA (header / main / footer)
+============================================ */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.contenido {
+  flex: 1;
+  width: 100%;
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.contenido-angosto {
+  max-width: var(--ancho-contenido-angosto);
+}
+
+/* El dashboard aprovecha más ancho en escritorio para mostrar gráficas lado a lado */
+.contenido-ancho {
+  max-width: var(--ancho-contenido-ancho);
+}
+
+.panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+}
+
+.panel-header h2 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.panel-header-sm { margin-bottom: 0.625rem; }
+.panel-header-md { margin-bottom: 0.75rem; }
+
+/* ============================================
+   BLOQUES Y TARJETAS
+============================================ */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.fila-doble {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.fila-doble .bloque {
+  margin-bottom: 0;
+}
+
+.bloque {
+  margin-bottom: 1rem;
+  padding: 0.875rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  transition: box-shadow var(--duracion-media) ease, border-color var(--duracion-media) ease;
+}
+
+.bloque h2 {
+  margin-bottom: 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-texto-suave);
+}
+
+.cifra-grande {
+  font-size: 1.5rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Tarjeta interna (metas, categorías del presupuesto) */
+.subtarjeta {
+  margin-bottom: 0.75rem;
+  padding: 0.875rem;
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.subtarjeta-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+.subtarjeta-titulo {
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.lista-tarjetas {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tarjeta-deuda {
+  padding: 0.875rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  transition:
+    transform var(--duracion-media) var(--curva-suave),
+    box-shadow var(--duracion-media) ease;
+}
+
+.tarjeta-deuda:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-elevada);
+}
+
+.tarjeta-deuda-nombre {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tarjeta-deuda-nombre fa-icon {
+  color: var(--color-primario);
+}
+
+.deuda-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Lista de cifras etiquetadas: <dl class="cifras"><div><dt/><dd/></div></dl> */
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 0.625rem 0;
+  font-size: 0.8125rem;
+}
+
+.cifras dt {
+  margin-bottom: 0.125rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  color: var(--color-texto-suave);
+}
+
+.cifras dd {
+  overflow-wrap: anywhere;
+}
+
+/* ============================================
+   LISTAS Y FILAS
+============================================ */
+.lista-simple,
+.lista-tabla {
+  list-style: none;
+}
+
+.lista-simple > li + li,
+.lista-tabla > li + li {
+  border-top: 1px solid var(--color-borde);
+}
+
+.lista-tabla {
+  padding: 0.25rem 0.875rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+/* En móvil la fila envuelve: monto y acciones bajan si no caben */
+.lista-simple > li,
+.lista-tabla > li {
+  animation: entrar-deslizando var(--duracion-media) var(--curva-suave) both;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.625rem;
+  padding: 0.625rem 0;
+}
+
+.fila-col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.fila-info {
+  flex: 1 1 10rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.fila-titulo {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fila-detalle {
+  font-size: 0.75rem;
+  color: var(--color-texto-suave);
+}
+
+.fila-monto {
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fila-acciones {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.fila-adaptable app-acciones-fila {
+  width: 100%;
+}
+
+.fila-adaptable .fila-acciones {
+  justify-content: flex-end;
+}
+
+.fila-distribucion {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.vacio {
+  padding: 0.75rem 0;
+  font-size: 0.875rem;
+  text-align: center;
+  color: var(--color-texto-suave);
+}
+
+.checkbox-pagado {
+  accent-color: var(--color-positivo);
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 1.25rem;
+}
+
+.badge-ok { background: var(--color-positivo-suave); color: var(--color-positivo); }
+.badge-pendiente { background: var(--color-advertencia-suave); color: var(--color-advertencia); }
+.badge-alta { background: var(--color-negativo-suave); color: var(--color-negativo); }
+.badge-media { background: var(--color-advertencia-suave); color: var(--color-advertencia); }
+.badge-baja { background: var(--color-neutro-suave); color: var(--color-texto-suave); }
+
+/* ============================================
+   TEXTO DE ESTADO
+============================================ */
+.positivo { color: var(--color-positivo); }
+.negativo,
+.texto-negativo { color: var(--color-negativo); }
+.texto-advertencia { color: var(--color-advertencia); }
+.texto-muted { color: var(--color-texto-suave); }
+
+.alerta-texto {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.alerta-advertencia {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-advertencia);
+  background: var(--color-advertencia-suave);
+  border: 1px solid var(--color-advertencia);
+  border-radius: 0.375rem;
+}
+
+.texto-meta {
+  margin-top: 0.25rem;
+  font-size: 0.6875rem;
+  color: var(--color-texto-suave);
+}
+
+.hint {
+  font-size: 0.8125rem;
+  color: var(--color-texto-suave);
+}
+
+.seccion-titulo {
+  margin-bottom: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ============================================
+   BOTONES
+============================================ */
+.btn-primario,
+.btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition:
+    background-color var(--duracion-rapida) ease,
+    border-color var(--duracion-rapida) ease,
+    box-shadow var(--duracion-rapida) ease,
+    transform var(--duracion-rapida) var(--curva-suave);
+}
+
+.btn-primario:hover:not(:disabled),
+.btn-secundario:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-primario:active:not(:disabled),
+.btn-secundario:active:not(:disabled),
+.btn-icono:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: 2px;
+}
+
+.btn-primario {
+  color: #ffffff;
+  background: var(--color-primario);
+}
+
+.btn-primario:hover:not(:disabled) {
+  background: var(--color-primario-hover);
+  box-shadow: 0 0.25rem 0.75rem var(--color-primario-suave);
+}
+
+.btn-secundario {
+  color: var(--color-texto);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+}
+
+.btn-secundario:hover:not(:disabled) {
+  background: var(--color-superficie-alta);
+  border-color: var(--color-texto-suave);
+}
+
+/* Botón cuadrado solo con icono (editar, eliminar, navegar meses...) */
+.btn-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  color: var(--color-texto-suave);
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  transition:
+    background-color var(--duracion-rapida) ease,
+    color var(--duracion-rapida) ease,
+    border-color var(--duracion-rapida) ease,
+    transform var(--duracion-rapida) var(--curva-suave);
+}
+
+.btn-icono:hover:not(:disabled) {
+  color: var(--color-primario);
+  background: var(--color-primario-suave);
+}
+
+.btn-icono.btn-icono-peligro:hover:not(:disabled) {
+  color: var(--color-negativo);
+  background: var(--color-negativo-suave);
+}
+
+.btn-icono.btn-icono-borde {
+  border-color: var(--color-borde);
+}
+
+/* Botones del encabezado (Inicio, Salir y acciones que proyecta cada módulo).
+   Mobile-first: solo icono; el texto aparece desde sm. */
+.btn-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-texto);
+  text-decoration: none;
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+  transition:
+    background-color var(--duracion-rapida) ease,
+    color var(--duracion-rapida) ease,
+    border-color var(--duracion-rapida) ease,
+    transform var(--duracion-rapida) var(--curva-suave);
+}
+
+.btn-header:hover {
+  color: var(--color-primario);
+  border-color: var(--color-primario);
+  transform: translateY(-1px);
+}
+
+.btn-header.btn-header-peligro:hover {
+  color: var(--color-negativo);
+  border-color: var(--color-negativo);
+}
+
+.btn-header:active {
+  transform: scale(0.96);
+}
+
+.btn-header-texto {
+  display: none;
+}
+
+.btn-pequeno {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  border-radius: 0.375rem;
+}
+
+.btn-bloque {
+  width: 100%;
+  margin-top: 1.125rem;
+}
+
+.btn-link {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  font-size: 0.8125rem;
+  text-align: center;
+  color: var(--color-primario);
+}
+
+.btn-link-inline {
+  display: inline;
+  width: auto;
+  margin: 0;
+}
+
+.btn-ajustar-saldo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.1875rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-texto-suave);
+  background: var(--color-superficie-alta);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.375rem;
+}
+
+.btn-ajustar-saldo:hover {
+  color: var(--color-primario);
+  border-color: var(--color-primario);
+}
+
+/* ============================================
+   FORMULARIOS
+============================================ */
+.campo {
+  display: block;
+  margin-bottom: 0.875rem;
+}
+
+.campo > label {
+  display: block;
+}
+
+.campo-etiqueta {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  width: 100%;
+  padding: 0.5625rem 0.75rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+}
+
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  outline: 2px solid var(--color-primario);
+  outline-offset: 1px;
+}
+
+.campo-en-linea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.campo .input-corto {
+  width: 5rem;
+}
+
+.campo-error {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-negativo);
+}
+
+.mensaje-error {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-negativo);
+}
+
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 0.625rem;
+}
+
+.filtro-mes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.filtro-mes app-campo-mes {
+  flex: 0 1 16rem;
+  margin-bottom: 0;
+}
+
+.resumen-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-texto-suave);
+}
+
+/* ============================================
+   UTILIDADES
+============================================ */
+.titulo-sin-margen { margin: 0; }
+.centrado { text-align: center; }
+.centrado .btn-secundario { margin-top: 0.5rem; }
+.mt-8 { margin-top: 0.5rem; }
+.mt-10 { margin-top: 0.625rem; }
+.mt-16 { margin-top: 1rem; }
+.mb-12 { margin-bottom: 0.75rem; }
+.mb-14 { margin-bottom: 0.875rem; }
+.mb-16 { margin-bottom: 1rem; }
+
+/* ============================================
+   INDICADOR DE COLOR DE CATEGORÍA
+============================================ */
+.punto-categoria {
+  width: 0.625rem;
+  height: 0.625rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-categoria, var(--color-texto-suave));
+  box-shadow: 0 0 0 2px var(--color-superficie);
+}
+
+.fila-con-color {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* Selector de color de categorías y cuentas (paleta --serie-N) */
+.selector-color {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.muestra-color {
+  width: 2rem;
+  height: 2rem;
+  background: var(--color-categoria);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--color-superficie), 0 0 0 3px transparent;
+  transition: transform var(--duracion-rapida) var(--curva-suave), box-shadow var(--duracion-rapida) ease;
+}
+
+.muestra-color:hover {
+  transform: scale(1.1);
+}
+
+.muestra-color[aria-checked='true'] {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px var(--color-superficie), 0 0 0 4px var(--color-texto);
+}
+
+/* ============================================
+   TRANSACCIONES Y CUENTAS
+============================================ */
+/* Origen y destino uno debajo del otro (el modal es angosto), con el botón de intercambio entre ambos */
+.cuentas-transaccion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.btn-invertir {
+  justify-self: center;
+  margin: -0.375rem 0 0.5rem;
+  transform: rotate(90deg);
+}
+
+.filtro-tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+
+.chip-filtro {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-texto-suave);
+  border: 1px solid var(--color-borde);
+  border-radius: 1.25rem;
+  transition:
+    background-color var(--duracion-rapida) ease,
+    color var(--duracion-rapida) ease,
+    border-color var(--duracion-rapida) ease;
+}
+
+.chip-filtro:hover {
+  color: var(--color-texto);
+}
+
+.chip-filtro[aria-pressed='true'] {
+  color: var(--color-primario);
+  background: var(--color-primario-suave);
+  border-color: var(--color-primario);
+}
+
+.icono-traslado {
+  width: 0.625rem;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-categoria);
+}
+
+/* ============================================
+   GRÁFICAS (compartido por los componentes SVG del dashboard)
+============================================ */
+.grafica-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grafica-grilla {
+  stroke: var(--color-grilla);
+  stroke-width: 1;
+}
+
+.grafica-eje {
+  stroke: var(--color-borde);
+  stroke-width: 1;
+}
+
+.grafica-texto-eje {
+  fill: var(--color-texto-suave);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.grafica-texto-valor {
+  fill: var(--color-texto);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.grafica-banda-hover {
+  fill: var(--color-texto);
+  opacity: 0;
+  transition: opacity var(--duracion-rapida) ease;
+}
+
+.grafica-banda-hover.activa {
+  opacity: 0.06;
+}
+
+.grafica-objetivo {
+  cursor: pointer;
+  outline: none;
+}
+
+.grafica-marca {
+  transition: opacity var(--duracion-rapida) ease;
+}
+
+.grafica-atenuada .grafica-marca:not(.resaltada) {
+  opacity: 0.45;
+}
+
+.grafica-leyenda-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  margin-bottom: 0.625rem;
+  font-size: 0.75rem;
+  color: var(--color-texto-suave);
+  list-style: none;
+}
+
+.grafica-leyenda-linea li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.muestra-serie {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.1875rem;
+  background: var(--color-serie);
+}
+
+.muestra-serie.muestra-pista {
+  background: var(--color-neutro-suave);
+  border: 1px dashed var(--color-texto-suave);
+}
+
+/* Lectura del punto bajo el cursor (hace de tooltip fijo y accesible) */
+.grafica-lectura {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.875rem;
+  min-height: 2.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  background: var(--color-superficie-alta);
+  border-radius: 0.5rem;
+}
+
+.grafica-lectura-titulo {
+  display: inline-block;
+  font-weight: 700;
+}
+
+.mayuscula-inicial {
+  display: inline-block;
+}
+
+/* "octubre de 2026" -> "Octubre de 2026" (capitalize pondría "De" en mayúscula) */
+.grafica-lectura-titulo::first-letter,
+.mayuscula-inicial::first-letter {
+  text-transform: uppercase;
+}
+
+.grafica-lectura-dato {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-texto-suave);
+}
+
+.grafica-lectura-dato strong {
+  color: var(--color-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.grafica-tabla {
+  margin-top: 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.grafica-tabla summary {
+  cursor: pointer;
+  color: var(--color-texto-suave);
+}
+
+.grafica-tabla table {
+  width: 100%;
+  margin-top: 0.5rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.grafica-tabla th,
+.grafica-tabla td {
+  padding: 0.25rem 0.375rem;
+  text-align: right;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.grafica-tabla th:first-child,
+.grafica-tabla td:first-child {
+  text-align: left;
+}
+
+/* ============================================
+   ANGULAR MATERIAL — ajustes para convivir con los estilos base
+============================================ */
+.mat-mdc-form-field input.mat-mdc-input-element {
+  background: transparent;
+}
+
+.mat-datepicker-content {
+  border: 1px solid var(--color-borde);
+  box-shadow: var(--sombra-elevada);
+}
+
+.icono-menu {
+  width: 1.25rem;
+  margin-right: 0.75rem;
+  color: var(--color-texto-suave);
+}
+
+/* ============================================
+   ANIMACIONES
+============================================ */
+@keyframes aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes desvanecer {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes entrar-deslizando {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.entrada-animada {
+  display: block;
+  /* backwards y no both: un transform que sigue aplicado tras la animación
+     convierte al elemento en contenedor de los position: fixed (los modales) */
+  animation: entrar-deslizando var(--duracion-media) var(--curva-suave) backwards;
+}
+
+/* Respeta la preferencia del sistema de reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* ============================================
+   BREAKPOINT sm — 37.5rem (600px)
+============================================ */
+@media (min-width: 37.5rem) {
+  input,
+  select,
+  textarea {
+    font-size: 0.9375rem;
+  }
+
+  .btn-header-texto {
+    display: inline;
+  }
+
+  .contenido {
+    padding: 1.25rem;
+  }
+
+  .panel-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .fila-doble {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bloque,
+  .tarjeta-deuda {
+    padding: 1rem;
+  }
+
+  .cifra-grande {
+    font-size: 1.625rem;
+  }
+
+  .cifras {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cifras.cifras-2col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lista-tabla {
+    padding: 0.25rem 1rem;
+  }
+
+  .fila {
+    flex-wrap: nowrap;
+  }
+
+  .fila-adaptable app-acciones-fila {
+    width: auto;
+  }
+
+  .grid-2col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ============================================
+   BREAKPOINT lg — 64rem (1024px)
+============================================ */
+@media (min-width: 64rem) {
+  .contenido {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .tarjetas {
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+}

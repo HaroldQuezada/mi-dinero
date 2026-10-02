@@ -1,0 +1,59 @@
+@let r = resumen();
+<article class="tarjeta-categoria" [style.--color-categoria]="r.color">
+  <header class="tarjeta-categoria-header">
+    <span class="icono-categoria" aria-hidden="true"><fa-icon [icon]="r.icono" /></span>
+    <div class="tarjeta-categoria-titulo">
+      <h3 class="subtarjeta-titulo">{{ r.categoria.nombre }}</h3>
+      <span class="fila-detalle">{{ r.categoria.porcentaje }}% del ingreso · {{ textoSubcategorias() }}</span>
+    </div>
+    <span class="uso-categoria" [class.uso-advertencia]="r.estado === 'advertencia'"
+      [class.uso-excedido]="r.estado === 'excedido'" title="Presupuesto usado">
+      {{ r.porcentajeUsado | porcentaje }}
+    </span>
+  </header>
+
+  <dl class="cifras">
+    <div>
+      <dt>Presupuesto</dt>
+      <dd>{{ r.presupuesto | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Gastado</dt>
+      <dd>{{ r.gastado | moneda }}</dd>
+    </div>
+    <div>
+      <dt>Disponible</dt>
+      <dd>
+        <strong [class.positivo]="r.disponible >= 0" [class.negativo]="r.disponible < 0">
+          {{ r.disponible | moneda }}
+        </strong>
+      </dd>
+    </div>
+  </dl>
+
+  <app-progress-bar [porcentaje]="r.porcentajeUsado" [estado]="r.estado"
+    [etiqueta]="'Presupuesto usado de ' + r.categoria.nombre" />
+  @if (r.alerta) {
+    <p class="alerta-texto" role="status" [class.texto-advertencia]="r.estado === 'advertencia'"
+      [class.texto-negativo]="r.estado === 'excedido'">{{ r.alerta }}</p>
+  }
+
+  @if (r.subcategorias.length > 0) {
+    <ul class="subcats-lista" aria-label="Subcategorías">
+      @for (sub of r.subcategorias; track sub.id) {
+        <li class="subcat-chip">
+          {{ sub.nombre }}
+          <button type="button" title="Eliminar" [attr.aria-label]="'Eliminar subcategoría ' + sub.nombre"
+            (click)="eliminarSubcategoria(sub)"><fa-icon [icon]="iconos.cerrar" /></button>
+        </li>
+      }
+    </ul>
+  }
+
+  <footer class="tarjeta-categoria-acciones">
+    <button type="button" class="btn-secundario btn-pequeno" (click)="agregarSubcategoria.emit()">
+      <fa-icon [icon]="iconos.agregar" /> Subcategoría
+    </button>
+    <app-acciones-fila [nombre]="r.categoria.nombre" (editar)="editar.emit()" (eliminar)="eliminar()" />
+  </footer>
+</article>
