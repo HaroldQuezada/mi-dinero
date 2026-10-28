@@ -701,3 +701,20 @@ input::placeholder { color: var(--muted); }
   .mov-fila .mov-cuenta-tag,
   .mov-fila .mov-acciones { display: none; }
 }
+
+/* Botón pagar deuda — visible sobre fondos oscuros */
+.btn-pagar {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-pagar:hover {
+  background: var(--accent);
+  color: #000;
+}

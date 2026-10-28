@@ -783,7 +783,7 @@ function renderDeudas() {
           </div>
           <div class="deuda-footer">
             <span></span>
-            <button class="btn-primary btn-sm" onclick="pagarDeuda('${d.id}')">Registrar pago</button>
+            <button class="btn-pagar" onclick="pagarDeuda('${d.id}')">💳 Registrar pago</button>
           </div>
         </div>`;
     }).join('')}`;
@@ -831,7 +831,7 @@ function renderDeudas() {
             <span class="deuda-alerta ${alertaClass}">${alerta}</span>
             <div class="deuda-acciones">
               <button class="btn-outline btn-sm" onclick="abrirModalCorte('${d.id}')">Registrar corte</button>
-              ${montoCuota>0&&!pagadoMes?`<button class="btn-primary btn-sm" onclick="pagarDeuda('${d.id}')">Pagar corte</button>`:''}
+              ${montoCuota>0&&!pagadoMes?`<button class="btn-pagar" onclick="pagarDeuda('${d.id}')">💳 Pagar corte</button>`:''}
             </div>
           </div>
         </div>`;
