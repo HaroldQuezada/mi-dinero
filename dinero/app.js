@@ -80,6 +80,35 @@ $('form-login').addEventListener('submit', async (e) => {
 
 $('btn-logout').addEventListener('click', () => db.auth.signOut());
 
+$('btn-reset').addEventListener('click', async () => {
+  const conf = confirm(
+    '¿Empezar de cero?\n\n' +
+    'Esto va a:\n' +
+    '• Eliminar todos los movimientos\n' +
+    '• Resetear los saldos de tus cuentas a $0\n' +
+    '• Conservar tus cuentas, deudas y metas\n\n' +
+    'Después podrás editar cada cuenta para poner el saldo real que tienes hoy.'
+  );
+  if (!conf) return;
+
+  // Eliminar todos los movimientos
+  await db.from('movimientos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  // Resetear saldo_inicial de todas las cuentas a 0
+  for (const c of cuentas) {
+    await db.from('cuentas').update({ saldo_inicial: 0 }).eq('id', c.id);
+  }
+
+  // Limpiar cortes del mes
+  await db.from('tarjeta_cortes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  await Promise.all([cargarCuentas(), cargarMovimientos(), cargarCortes()]);
+  renderTodo();
+
+  alert('Listo. Ahora ve a Cuentas → Editar cada una y pon el saldo real que tienes hoy.');
+  irTab('cuentas');
+});
+
 db.auth.onAuthStateChange((_, sesion) => {
   if (sesion) {
     $('vista-login').classList.add('oculto');
