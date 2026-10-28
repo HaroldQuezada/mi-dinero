@@ -80,33 +80,64 @@ $('form-login').addEventListener('submit', async (e) => {
 
 $('btn-logout').addEventListener('click', () => db.auth.signOut());
 
-$('btn-reset').addEventListener('click', async () => {
-  const conf = confirm(
-    '¿Empezar de cero?\n\n' +
-    'Esto va a:\n' +
-    '• Eliminar todos los movimientos\n' +
-    '• Resetear los saldos de tus cuentas a $0\n' +
-    '• Conservar tus cuentas, deudas y metas\n\n' +
-    'Después podrás editar cada cuenta para poner el saldo real que tienes hoy.'
-  );
-  if (!conf) return;
+$('btn-reset').addEventListener('click', () => {
+  const balanceActual = balanceTotal();
+  const opCuentas = cuentas.length > 0
+    ? cuentas.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')
+    : '<option value="">Sin cuenta (balance general)</option>';
 
-  // Eliminar todos los movimientos
-  await db.from('movimientos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  abrirModal(`
+    <h3>Ajustar balance actual</h3>
+    <p style="color:#7b82a0;font-size:13px;margin-bottom:16px">
+      Balance calculado: <strong style="color:#e8eaf0">${fmt(balanceActual)}</strong><br>
+      Escribe cuánto tienes realmente hoy y se crea un ajuste automático.
+    </p>
+    <div class="campo">
+      <label>¿Cuánto tienes realmente ahora?</label>
+      <input type="number" id="rst-saldo" min="0" placeholder="0">
+    </div>
+    ${cuentas.length > 0 ? `
+    <div class="campo">
+      <label>¿En qué cuenta reflejar el ajuste?</label>
+      <select id="rst-cuenta">${opCuentas}</select>
+    </div>` : ''}
+    <div id="rst-preview" style="font-size:13px;color:#7b82a0;margin-top:-6px;margin-bottom:14px;"></div>
+    <div class="modal-acciones">
+      <button class="btn-outline" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primary" id="btn-rst-ok">Aplicar ajuste</button>
+    </div>
+  `);
 
-  // Resetear saldo_inicial de todas las cuentas a 0
-  for (const c of cuentas) {
-    await db.from('cuentas').update({ saldo_inicial: 0 }).eq('id', c.id);
-  }
+  $('rst-saldo').addEventListener('input', () => {
+    const real = parseFloat($('rst-saldo').value);
+    if (isNaN(real)) { $('rst-preview').textContent = ''; return; }
+    const diff = real - balanceActual;
+    if (Math.abs(diff) < 1) { $('rst-preview').textContent = '✓ Ya está correcto.'; return; }
+    $('rst-preview').textContent = diff > 0
+      ? `→ Se registra un ingreso de ajuste por ${fmt(diff)}`
+      : `→ Se registra un gasto de ajuste por ${fmt(Math.abs(diff))}`;
+  });
 
-  // Limpiar cortes del mes
-  await db.from('tarjeta_cortes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  $('btn-rst-ok').addEventListener('click', async () => {
+    const real = parseFloat($('rst-saldo').value);
+    if (isNaN(real) || real < 0) return alert('Ingresa un valor válido');
+    const diff = real - balanceActual;
+    if (Math.abs(diff) < 1) { cerrarModal(); return; }
 
-  await Promise.all([cargarCuentas(), cargarMovimientos(), cargarCortes()]);
-  renderTodo();
-
-  alert('Listo. Ahora ve a Cuentas → Editar cada una y pon el saldo real que tienes hoy.');
-  irTab('cuentas');
+    const cuentaId = $('rst-cuenta')?.value || null;
+    const { error } = await db.from('movimientos').insert({
+      tipo: diff > 0 ? 'ingreso' : 'gasto',
+      monto: Math.abs(diff),
+      categoria: 'Ajuste de balance',
+      cuenta_id: cuentaId,
+      fecha: hoyISO(),
+      nota: `Ajuste manual — balance real: ${fmt(real)}`,
+    });
+    if (error) return alert('Error: ' + error.message);
+    cerrarModal();
+    await cargarMovimientos();
+    renderTodo();
+  });
 });
 
 db.auth.onAuthStateChange((_, sesion) => {
