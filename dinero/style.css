@@ -4,17 +4,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0f1117;
-  --surface:   #181c27;
-  --surface2:  #1e2335;
-  --border:    #2a2f45;
-  --text:      #e8eaf0;
-  --muted:     #7b82a0;
-  --accent:    #6c8aff;
-  --accent2:   #3d5cff;
-  --positive:  #3ecf8e;
-  --negative:  #f56565;
-  --warning:   #f5a623;
+  --bg:        #0a0a0a;
+  --surface:   #111111;
+  --surface2:  #1a1a1a;
+  --border:    #2a2a2a;
+  --text:      #f0f0f0;
+  --muted:     #777777;
+  --accent:    #7fff00;   /* verde lima Ben 10 */
+  --accent2:   #5dba00;   /* verde más oscuro hover */
+  --positive:  #7fff00;
+  --negative:  #ff4444;
+  --warning:   #ffcc00;
   --radius:    12px;
   --radius-sm: 8px;
   --font:      'Inter', system-ui, sans-serif;
@@ -44,7 +44,7 @@ input::placeholder { color: var(--muted); }
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: radial-gradient(ellipse at 60% 40%, #1a2040 0%, var(--bg) 65%);
+  background: radial-gradient(ellipse at 60% 40%, #0d1a00 0%, var(--bg) 65%);
 }
 
 .login-card {
@@ -108,7 +108,7 @@ input::placeholder { color: var(--muted); }
 }
 
 .nav-item:hover { background: var(--surface2); color: var(--text); }
-.nav-item.activo { background: rgba(108,138,255,0.15); color: var(--accent); }
+.nav-item.activo { background: rgba(127,255,0,0.12); color: var(--accent); }
 .nav-icon { font-size: 14px; width: 18px; text-align: center; }
 
 .btn-logout {
@@ -170,8 +170,8 @@ input::placeholder { color: var(--muted); }
 }
 
 .kpi-primary {
-  background: linear-gradient(135deg, #1a2540 0%, #1e2f5a 100%);
-  border-color: rgba(108,138,255,0.3);
+  background: linear-gradient(135deg, #0d1a00 0%, #1a3300 100%);
+  border-color: rgba(127,255,0,0.3);
 }
 
 .kpi-label { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -527,11 +527,11 @@ input::placeholder { color: var(--muted); }
 ============================================= */
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: #000;
   padding: 9px 18px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   transition: background 0.15s;
 }
 .btn-primary:hover { background: var(--accent2); }
@@ -553,7 +553,7 @@ input::placeholder { color: var(--muted); }
   padding: 4px 8px;
   border-radius: 6px;
 }
-.btn-sm:hover { background: rgba(108,138,255,0.1); }
+.btn-sm:hover { background: rgba(127,255,0,0.1); }
 
 .btn-danger { color: var(--negative); font-size: 12px; padding: 4px 8px; border-radius: 6px; }
 .btn-danger:hover { background: rgba(245,101,101,0.1); }

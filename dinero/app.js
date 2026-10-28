@@ -16,7 +16,7 @@ let config      = { ingreso_mensual: 0, categorias: [] };
 let cortes      = [];
 let memoriaCateg = {};
 
-const PALETA = ['#6c8aff','#3ecf8e','#f5a623','#f56565','#a78bfa','#38bdf8','#fb923c','#c084fc','#34d399','#fbbf24'];
+const PALETA = ['#7fff00','#a8ff3e','#f5a623','#f56565','#a78bfa','#38bdf8','#fb923c','#c084fc','#34d399','#fbbf24'];
 const ICONOS_TIPO = { banco: '🏦', billetera_digital: '📱', efectivo: '💵' };
 
 // =============================================
@@ -266,7 +266,18 @@ function disponible() {
 
 function nombreCuenta(cuentaId) {
   const c = cuentas.find(x => x.id === cuentaId);
-  return c ? c.nombre : (cuentaId ? 'Cuenta' : 'Efectivo');
+  if (c) return c.nombre;
+  const d = deudas.find(x => x.id === cuentaId);
+  if (d) return '💳 ' + d.nombre;
+  return cuentaId ? 'Cuenta' : 'Sin cuenta';
+}
+
+function saldoTarjetaDebito(deudaId) {
+  // Saldo de una tarjeta usada como débito = solo los movimientos asignados a ella
+  const delta = movimientos
+    .filter(m => m.cuenta_id === deudaId)
+    .reduce((acc, m) => acc + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
+  return delta;
 }
 
 // =============================================
@@ -397,13 +408,13 @@ function renderLineaBalance() {
   svg.innerHTML = `
     <defs>
       <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#6c8aff" stop-opacity="0.3"/>
-        <stop offset="100%" stop-color="#6c8aff" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#7fff00" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#7fff00" stop-opacity="0"/>
       </linearGradient>
     </defs>
     <path d="${area}" fill="url(#grad)"/>
-    <path d="${line}" fill="none" stroke="#6c8aff" stroke-width="2" stroke-linejoin="round"/>
-    ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#6c8aff"/>`).join('')}
+    <path d="${line}" fill="none" stroke="#7fff00" stroke-width="2" stroke-linejoin="round"/>
+    ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#7fff00"/>`).join('')}
   `;
 
   labelsEl.innerHTML = meses.slice(0, valores.length).map(m => `<span>${fmtMes(m)}</span>`).join('');
@@ -412,20 +423,24 @@ function renderLineaBalance() {
 // --- DASH CUENTAS ---
 function renderDashCuentas() {
   const el = $('dash-cuentas');
-  if (cuentas.length === 0) {
+  const todas = [
+    ...cuentas.map(c => ({ icono: ICONOS_TIPO[c.tipo]||'💰', nombre: c.nombre, tipo: c.tipo.replace('_',' '), saldo: saldoCuenta(c.id) })),
+    ...deudas.filter(d => d.tipo === 'tarjeta_credito').map(d => ({ icono: '💳', nombre: d.nombre, tipo: 'Tarjeta (débito)', saldo: saldoTarjetaDebito(d.id) }))
+  ];
+  if (todas.length === 0) {
     el.innerHTML = `<p class="vacio">Sin cuentas. <button class="btn-sm" onclick="irTab('cuentas')">Agregar</button></p>`;
     return;
   }
-  el.innerHTML = cuentas.map(c => `
+  el.innerHTML = todas.map(c => `
     <div class="cuenta-fila">
       <div class="cuenta-info">
-        <span class="cuenta-icono">${ICONOS_TIPO[c.tipo]||'💰'}</span>
+        <span class="cuenta-icono">${c.icono}</span>
         <div>
           <div class="cuenta-nombre">${esc(c.nombre)}</div>
-          <div class="cuenta-tipo">${c.tipo.replace('_',' ')}</div>
+          <div class="cuenta-tipo">${c.tipo}</div>
         </div>
       </div>
-      <span class="cuenta-saldo ${saldoCuenta(c.id)<0?'negativo':''}">${fmt(saldoCuenta(c.id))}</span>
+      <span class="cuenta-saldo ${c.saldo<0?'negativo':''}">${fmt(c.saldo)}</span>
     </div>`).join('');
 }
 
@@ -445,7 +460,7 @@ function renderDashAhorros() {
           <div class="barra" style="margin:6px 0 4px"><div class="barra-fill barra-ok" style="width:${pct}%"></div></div>
           <div class="meta-fila-prog">${fmt(m.valor_ahorrado)} / ${fmt(m.valor_objetivo)}</div>
         </div>
-        <span style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#6c8aff">${pct.toFixed(0)}%</span>
+        <span style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:#7fff00">${pct.toFixed(0)}%</span>
       </div>`;
   }).join('');
 }
@@ -518,7 +533,10 @@ function abrirModalMovimiento(id) {
   movimientos.filter(m => m.tipo === tipoIni).forEach(m => { freq[m.categoria] = (freq[m.categoria]||0)+1; });
   const sugeridas = Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([c])=>c);
 
-  const opCuentas = cuentas.map(c => `<option value="${c.id}" ${mov?.cuenta_id===c.id?'selected':''}>${esc(c.nombre)}</option>`).join('');
+  const opCuentas = [
+    ...cuentas.map(c => `<option value="${c.id}" ${mov?.cuenta_id===c.id?'selected':''}>${esc(c.nombre)}</option>`),
+    ...deudas.filter(d => d.tipo === 'tarjeta_credito').map(d => `<option value="${d.id}" ${mov?.cuenta_id===d.id?'selected':''}>💳 ${esc(d.nombre)}</option>`)
+  ].join('');
 
   abrirModal(`
     <h3>${mov ? 'Editar' : 'Nuevo'} movimiento</h3>
@@ -618,11 +636,14 @@ async function eliminarMovimiento(id) {
 // =============================================
 function renderCuentas() {
   const el = $('grid-cuentas');
-  if (cuentas.length === 0) {
+  const tarjetasDebito = deudas.filter(d => d.tipo === 'tarjeta_credito');
+
+  if (cuentas.length === 0 && tarjetasDebito.length === 0) {
     el.innerHTML = `<div class="vacio" style="grid-column:1/-1">Sin cuentas. Agrega una para empezar.</div>`;
     return;
   }
-  el.innerHTML = cuentas.map(c => {
+
+  const cardsCuentas = cuentas.map(c => {
     const saldo = saldoCuenta(c.id);
     return `
       <div class="cuenta-card">
@@ -638,7 +659,26 @@ function renderCuentas() {
         <div class="cuenta-card-saldo ${saldo<0?'negativo':''}">${fmt(saldo)}</div>
         <div class="barra"><div class="barra-fill barra-ok" style="width:100%"></div></div>
       </div>`;
-  }).join('');
+  });
+
+  const cardsTarjetas = tarjetasDebito.map(d => {
+    const saldo = saldoTarjetaDebito(d.id);
+    return `
+      <div class="cuenta-card" style="border-color:rgba(108,138,255,0.3)">
+        <div class="cuenta-card-top">
+          <span class="cuenta-card-icono">💳</span>
+          <div class="fila-acciones-sm">
+            <button class="btn-ghost" onclick="irTab('deudas')">Ver deuda</button>
+          </div>
+        </div>
+        <div class="cuenta-card-nombre">${esc(d.nombre)}</div>
+        <div class="cuenta-card-tipo">Tarjeta de crédito (débito)</div>
+        <div class="cuenta-card-saldo ${saldo<0?'negativo':''}">${fmt(saldo)}</div>
+        <div class="barra"><div class="barra-fill" style="width:100%;background:#7fff00;opacity:0.5"></div></div>
+      </div>`;
+  });
+
+  el.innerHTML = [...cardsCuentas, ...cardsTarjetas].join('');
 }
 
 function abrirModalCuenta(id) {
@@ -709,98 +749,176 @@ function renderDeudas() {
   if (deudas.length === 0) {
     el.innerHTML = '<p class="vacio">Sin deudas registradas.</p>'; return;
   }
-  el.innerHTML = deudas.map(d => {
-    const corte = cortes.find(c => c.deuda_id === d.id);
-    const pagadoMes = corte?.pagado || false;
-    const montoCuota = corte?.monto_corte || d.pago_mensual_planeado || 0;
-    const saldo = Math.max((d.monto_total||0) - (d.pagado_acumulado||0), 0);
-    const pct = d.monto_total > 0 ? Math.min((d.pagado_acumulado/d.monto_total)*100,100) : 0;
-    const mesesFaltan = montoCuota > 0 ? Math.ceil(saldo/montoCuota) : '?';
 
-    let alerta = ''; let alertaClass = '';
-    if (corte?.fecha_limite) {
-      const limite = new Date(corte.fecha_limite);
-      const hoy = new Date();
-      const dias = Math.ceil((limite-hoy)/(1000*60*60*24));
-      if (!pagadoMes && dias <= 0) { alerta = '⚠ Fecha límite vencida'; alertaClass = 'vencida'; }
-      else if (!pagadoMes && dias <= 5) { alerta = `⏰ Vence en ${dias} días`; alertaClass = 'vence-pronto'; }
-    }
+  const prestamos = deudas.filter(d => d.tipo !== 'tarjeta_credito');
+  const tarjetas  = deudas.filter(d => d.tipo === 'tarjeta_credito');
 
-    return `
-      <div class="deuda-card">
-        <div class="deuda-header">
-          <div>
+  const htmlPrestamos = prestamos.length === 0 ? '' : `
+    <h4 style="color:#7b82a0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;">📋 Préstamos</h4>
+    ${prestamos.map(d => {
+      const saldo = Math.max((d.monto_total||0) - (d.pagado_acumulado||0), 0);
+      const pct = d.monto_total > 0 ? Math.min((d.pagado_acumulado/d.monto_total)*100,100) : 0;
+      const cuota = d.pago_mensual_planeado || 0;
+      const meses = cuota > 0 ? Math.ceil(saldo/cuota) : '?';
+      return `
+        <div class="deuda-card" style="margin-bottom:12px">
+          <div class="deuda-header">
             <div class="deuda-nombre">${esc(d.nombre)}</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-ghost" onclick="abrirModalDeuda('${d.id}')">Editar</button>
+              <button class="btn-danger" onclick="eliminarDeuda('${d.id}')">×</button>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span class="badge ${pagadoMes?'badge-ok':'badge-pend'}">${pagadoMes?'Pagado':'Pendiente'}</span>
-            <button class="btn-ghost" onclick="abrirModalDeuda('${d.id}')">Editar</button>
-            <button class="btn-danger" onclick="eliminarDeuda('${d.id}')">×</button>
+          <div class="deuda-datos">
+            <div class="deuda-dato"><span>Total deuda</span><strong>${fmt(d.monto_total)}</strong></div>
+            <div class="deuda-dato"><span>Pagado</span><strong class="positivo">${fmt(d.pagado_acumulado)}</strong></div>
+            <div class="deuda-dato"><span>Saldo restante</span><strong class="negativo">${fmt(saldo)}</strong></div>
+            <div class="deuda-dato"><span>Cuota mensual</span><strong>${fmt(cuota)}</strong></div>
+            <div class="deuda-dato"><span>Meses restantes</span><strong>${meses}</strong></div>
+            <div class="deuda-dato"><span>Avance</span><strong>${pct.toFixed(0)}%</strong></div>
           </div>
-        </div>
-        <div class="deuda-datos">
-          <div class="deuda-dato"><span>Saldo total</span><strong>${fmt(saldo)}</strong></div>
-          <div class="deuda-dato"><span>Cuota del mes</span><strong>${fmt(montoCuota)}</strong></div>
-          <div class="deuda-dato"><span>Meses restantes</span><strong>${mesesFaltan}</strong></div>
-        </div>
-        <div class="barra">
-          <div class="barra-fill ${pct>=100?'barra-ok':pct>=80?'barra-warn':'barra-ok'}" style="width:${pct}%"></div>
-        </div>
-        <div class="deuda-footer">
-          <span class="deuda-alerta ${alertaClass}">${alerta}</span>
-          <div class="deuda-acciones">
-            <button class="btn-outline btn-sm" onclick="abrirModalCorte('${d.id}')">Registrar corte</button>
-            ${montoCuota>0&&!pagadoMes?`<button class="btn-primary btn-sm" onclick="pagarDeuda('${d.id}')">Pagar</button>`:''}
+          <div class="barra">
+            <div class="barra-fill barra-ok" style="width:${pct}%"></div>
           </div>
-        </div>
-      </div>`;
-  }).join('');
+          <div class="deuda-footer">
+            <span></span>
+            <button class="btn-primary btn-sm" onclick="pagarDeuda('${d.id}')">Registrar pago</button>
+          </div>
+        </div>`;
+    }).join('')}`;
+
+  const htmlTarjetas = tarjetas.length === 0 ? '' : `
+    <h4 style="color:#7b82a0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin:16px 0 10px;">💳 Tarjetas de crédito</h4>
+    ${tarjetas.map(d => {
+      const corte = cortes.find(c => c.deuda_id === d.id);
+      const pagadoMes = corte?.pagado || false;
+      const montoCuota = corte?.monto_corte || 0;
+      const gastadoTarjeta = saldoTarjetaDebito(d.id);
+      const cupoUsado = Math.abs(Math.min(gastadoTarjeta, 0));
+      const cupoTotal = d.cupo || 0;
+      const cupoDisp = cupoTotal > 0 ? cupoTotal - cupoUsado : null;
+      const pctCupo = cupoTotal > 0 ? Math.min((cupoUsado/cupoTotal)*100,100) : 0;
+
+      let alerta = ''; let alertaClass = '';
+      if (corte?.fecha_limite && !pagadoMes) {
+        const dias = Math.ceil((new Date(corte.fecha_limite) - new Date())/(1000*60*60*24));
+        if (dias <= 0) { alerta = '⚠ Fecha límite vencida'; alertaClass = 'vencida'; }
+        else if (dias <= 5) { alerta = `⏰ Vence en ${dias} días`; alertaClass = 'vence-pronto'; }
+      }
+
+      return `
+        <div class="deuda-card" style="margin-bottom:12px;border-color:rgba(108,138,255,0.25)">
+          <div class="deuda-header">
+            <div>
+              <div class="deuda-nombre">💳 ${esc(d.nombre)}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="badge ${pagadoMes?'badge-ok':'badge-pend'}">${pagadoMes?'Pagado este mes':'Pendiente'}</span>
+              <button class="btn-ghost" onclick="abrirModalDeuda('${d.id}')">Editar</button>
+              <button class="btn-danger" onclick="eliminarDeuda('${d.id}')">×</button>
+            </div>
+          </div>
+          <div class="deuda-datos">
+            ${cupoTotal > 0 ? `<div class="deuda-dato"><span>Cupo total</span><strong>${fmt(cupoTotal)}</strong></div>` : ''}
+            ${cupoDisp !== null ? `<div class="deuda-dato"><span>Cupo disponible</span><strong class="${cupoDisp<0?'negativo':'positivo'}">${fmt(cupoDisp)}</strong></div>` : ''}
+            ${d.dia_corte ? `<div class="deuda-dato"><span>Día de corte</span><strong>Día ${d.dia_corte}</strong></div>` : ''}
+            ${montoCuota > 0 ? `<div class="deuda-dato"><span>Cuota este mes</span><strong>${fmt(montoCuota)}</strong></div>` : ''}
+            ${d.dia_limite_pago ? `<div class="deuda-dato"><span>Límite de pago</span><strong>Día ${d.dia_limite_pago}</strong></div>` : ''}
+          </div>
+          ${cupoTotal > 0 ? `<div class="barra"><div class="barra-fill ${pctCupo>=90?'barra-over':pctCupo>=70?'barra-warn':'barra-ok'}" style="width:${pctCupo}%"></div></div>` : ''}
+          <div class="deuda-footer">
+            <span class="deuda-alerta ${alertaClass}">${alerta}</span>
+            <div class="deuda-acciones">
+              <button class="btn-outline btn-sm" onclick="abrirModalCorte('${d.id}')">Registrar corte</button>
+              ${montoCuota>0&&!pagadoMes?`<button class="btn-primary btn-sm" onclick="pagarDeuda('${d.id}')">Pagar corte</button>`:''}
+            </div>
+          </div>
+        </div>`;
+    }).join('')}`;
+
+  el.innerHTML = htmlPrestamos + htmlTarjetas;
 }
 
 function abrirModalDeuda(id) {
   const d = id ? deudas.find(x=>x.id===id) : null;
+  const tipoIni = d?.tipo || 'prestamo';
+
   abrirModal(`
     <h3>${d?'Editar':'Nueva'} deuda</h3>
+    <div class="toggle-tipo" style="margin-bottom:16px;">
+      <button type="button" id="deu-tog-p" class="${tipoIni==='prestamo'?'activo-ingreso':''}">📋 Préstamo</button>
+      <button type="button" id="deu-tog-t" class="${tipoIni==='tarjeta_credito'?'activo-gasto':''}">💳 Tarjeta crédito</button>
+    </div>
+    <input type="hidden" id="deu-tipo" value="${tipoIni}">
     <div class="campo">
       <label>Nombre</label>
-      <input type="text" id="deu-nom" value="${d?esc(d.nombre):''}" placeholder="Ej: Préstamo banco, Maestría">
+      <input type="text" id="deu-nom" value="${d?esc(d.nombre):''}" placeholder="Ej: Préstamo banco / Visa Platino">
     </div>
-    <div class="campo">
-      <label>Monto total</label>
-      <input type="number" id="deu-total" min="0" value="${d?.monto_total||''}" placeholder="0">
-    </div>
-    <div class="campo">
-      <label>Pagado hasta ahora</label>
-      <input type="number" id="deu-pagado" min="0" value="${d?.pagado_acumulado||0}" placeholder="0">
-    </div>
-    <div class="campo">
-      <label>Pago mensual planeado</label>
-      <input type="number" id="deu-cuota" min="0" value="${d?.pago_mensual_planeado||''}" placeholder="0">
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+    <div id="deu-campos-prestamo" class="${tipoIni==='tarjeta_credito'?'oculto':''}">
       <div class="campo">
-        <label>Día de corte</label>
-        <input type="number" id="deu-corte" min="1" max="31" value="${d?.dia_corte||''}" placeholder="15">
+        <label>Monto total</label>
+        <input type="number" id="deu-total" min="0" value="${d?.monto_total||''}" placeholder="0">
       </div>
       <div class="campo">
-        <label>Día límite pago</label>
-        <input type="number" id="deu-limite" min="1" max="31" value="${d?.dia_limite_pago||''}" placeholder="5">
+        <label>Pagado hasta ahora</label>
+        <input type="number" id="deu-pagado" min="0" value="${d?.pagado_acumulado||0}" placeholder="0">
+      </div>
+      <div class="campo">
+        <label>Cuota mensual</label>
+        <input type="number" id="deu-cuota" min="0" value="${d?.pago_mensual_planeado||''}" placeholder="0">
       </div>
     </div>
+
+    <div id="deu-campos-tarjeta" class="${tipoIni==='prestamo'?'oculto':''}">
+      <div class="campo">
+        <label>Cupo total de la tarjeta</label>
+        <input type="number" id="deu-cupo" min="0" value="${d?.cupo||''}" placeholder="0">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="campo">
+          <label>Día de corte</label>
+          <input type="number" id="deu-corte" min="1" max="31" value="${d?.dia_corte||''}" placeholder="15">
+        </div>
+        <div class="campo">
+          <label>Día límite pago</label>
+          <input type="number" id="deu-limite" min="1" max="31" value="${d?.dia_limite_pago||''}" placeholder="5">
+        </div>
+      </div>
+    </div>
+
     <div class="modal-acciones">
       <button class="btn-outline" onclick="cerrarModal()">Cancelar</button>
       <button class="btn-primary" id="btn-gdeu">Guardar</button>
     </div>
   `);
 
+  $('deu-tog-p').addEventListener('click', () => {
+    $('deu-tipo').value = 'prestamo';
+    $('deu-tog-p').className = 'activo-ingreso';
+    $('deu-tog-t').className = '';
+    $('deu-campos-prestamo').classList.remove('oculto');
+    $('deu-campos-tarjeta').classList.add('oculto');
+  });
+  $('deu-tog-t').addEventListener('click', () => {
+    $('deu-tipo').value = 'tarjeta_credito';
+    $('deu-tog-t').className = 'activo-gasto';
+    $('deu-tog-p').className = '';
+    $('deu-campos-tarjeta').classList.remove('oculto');
+    $('deu-campos-prestamo').classList.add('oculto');
+  });
+
   $('btn-gdeu').addEventListener('click', async () => {
+    const tipo = $('deu-tipo').value;
     const payload = {
       nombre: $('deu-nom').value.trim(),
-      monto_total: parseFloat($('deu-total').value) || 0,
-      pagado_acumulado: parseFloat($('deu-pagado').value) || 0,
-      pago_mensual_planeado: parseFloat($('deu-cuota').value) || 0,
-      dia_corte: parseInt($('deu-corte').value) || null,
-      dia_limite_pago: parseInt($('deu-limite').value) || null,
+      tipo,
+      monto_total: tipo === 'prestamo' ? (parseFloat($('deu-total').value) || 0) : 0,
+      pagado_acumulado: tipo === 'prestamo' ? (parseFloat($('deu-pagado').value) || 0) : 0,
+      pago_mensual_planeado: tipo === 'prestamo' ? (parseFloat($('deu-cuota').value) || 0) : 0,
+      cupo: tipo === 'tarjeta_credito' ? (parseFloat($('deu-cupo').value) || 0) : null,
+      dia_corte: tipo === 'tarjeta_credito' ? (parseInt($('deu-corte').value) || null) : null,
+      dia_limite_pago: tipo === 'tarjeta_credito' ? (parseInt($('deu-limite').value) || null) : null,
     };
     if (!payload.nombre) return alert('Escribe un nombre');
     let error;
