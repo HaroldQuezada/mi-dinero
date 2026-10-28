@@ -531,10 +531,23 @@ input::placeholder { color: var(--muted); }
   padding: 9px 18px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 700;
-  transition: background 0.15s;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 2px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+  text-shadow: none;
 }
-.btn-primary:hover { background: var(--accent2); }
+.btn-primary:hover {
+  background: var(--accent2);
+  border-color: #fff;
+}
+
+/* Botón primario pequeño en contexto oscuro */
+.btn-primary.btn-sm {
+  padding: 7px 14px;
+  font-size: 12px;
+  border: 2px solid #000;
+}
 
 .btn-outline {
   border: 1px solid var(--border);
