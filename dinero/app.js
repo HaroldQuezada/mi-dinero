@@ -265,19 +265,20 @@ function disponible() {
 }
 
 function nombreCuenta(cuentaId) {
-  const c = cuentas.find(x => x.id === cuentaId);
+  if (!cuentaId) return 'Sin cuenta';
+  const id = cuentaId.replace('tarjeta:', '');
+  const c = cuentas.find(x => x.id === id);
   if (c) return c.nombre;
-  const d = deudas.find(x => x.id === cuentaId);
+  const d = deudas.find(x => x.id === id);
   if (d) return '💳 ' + d.nombre;
-  return cuentaId ? 'Cuenta' : 'Sin cuenta';
+  return 'Sin cuenta';
 }
 
 function saldoTarjetaDebito(deudaId) {
-  // Saldo de una tarjeta usada como débito = solo los movimientos asignados a ella
-  const delta = movimientos
-    .filter(m => m.cuenta_id === deudaId)
+  const id = deudaId?.replace('tarjeta:', '');
+  return movimientos
+    .filter(m => m.cuenta_id === id)
     .reduce((acc, m) => acc + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
-  return delta;
 }
 
 // =============================================
@@ -535,7 +536,7 @@ function abrirModalMovimiento(id) {
 
   const opCuentas = [
     ...cuentas.map(c => `<option value="${c.id}" ${mov?.cuenta_id===c.id?'selected':''}>${esc(c.nombre)}</option>`),
-    ...deudas.filter(d => d.tipo === 'tarjeta_credito').map(d => `<option value="${d.id}" ${mov?.cuenta_id===d.id?'selected':''}>💳 ${esc(d.nombre)}</option>`)
+    ...deudas.filter(d => d.tipo === 'tarjeta_credito').map(d => `<option value="tarjeta:${d.id}" ${mov?.cuenta_id===d.id||mov?.cuenta_id===('tarjeta:'+d.id)?'selected':''}>💳 ${esc(d.nombre)}</option>`)
   ].join('');
 
   abrirModal(`
@@ -592,7 +593,7 @@ function abrirModalMovimiento(id) {
       tipo: $('m-tipo').value,
       monto: parseFloat($('m-monto').value),
       categoria: $('m-categoria').value.trim(),
-      cuenta_id: $('m-cuenta').value || null,
+      cuenta_id: $('m-cuenta').value?.replace('tarjeta:', '') || null,
       fecha: $('m-fecha').value,
       nota: $('m-nota').value.trim() || null,
     };
