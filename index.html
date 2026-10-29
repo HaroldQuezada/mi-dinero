@@ -3,87 +3,273 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Vida</title>
-<link rel="stylesheet" href="estilos-base.css">
-<style>
-  body {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .portada {
-    width: 100%;
-    max-width: 420px;
-    text-align: center;
-  }
-  .portada h1 {
-    font-size: 26px;
-    margin-bottom: 6px;
-  }
-  .portada .subtitulo {
-    color: var(--color-texto-suave);
-    font-size: 14px;
-    margin-bottom: 28px;
-  }
-  .modulos {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .modulo-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    background: var(--color-superficie);
-    border: 1px solid var(--color-borde);
-    border-radius: var(--radio);
-    padding: 18px;
-    text-decoration: none;
-    color: var(--color-texto);
-    text-align: left;
-    transition: border-color 0.15s;
-  }
-  .modulo-card:hover {
-    border-color: var(--color-primario);
-  }
-  .modulo-icono {
-    font-size: 28px;
-    width: 48px;
-    text-align: center;
-  }
-  .modulo-texto strong {
-    display: block;
-    font-size: 16px;
-    margin-bottom: 2px;
-  }
-  .modulo-texto span {
-    font-size: 13px;
-    color: var(--color-texto-suave);
-  }
-</style>
+<title>Mi Dinero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="portada">
-    <h1>Mi Vida</h1>
-    <p class="subtitulo">Panel personal</p>
-    <div class="modulos">
-      <a href="dinero/index.html" class="modulo-card">
-        <span class="modulo-icono">💰</span>
-        <span class="modulo-texto">
-          <strong>Mi Dinero</strong>
-          <span>Ingresos, gastos, deudas y presupuesto</span>
-        </span>
-      </a>
-      <a href="habitos/index.html" class="modulo-card">
-        <span class="modulo-icono">✅</span>
-        <span class="modulo-texto">
-          <strong>Mis Hábitos</strong>
-          <span>Rutinas y organización diaria</span>
-        </span>
-      </a>
-    </div>
+
+<!-- LOGIN -->
+<div id="vista-login">
+  <div class="login-card">
+    <div class="login-logo">💰</div>
+    <h1>Mi Dinero</h1>
+    <p class="login-sub">Control real de tus finanzas</p>
+    <form id="form-login">
+      <div class="campo">
+        <label>Correo</label>
+        <input type="email" id="login-email" required autocomplete="email" placeholder="tu@correo.com">
+      </div>
+      <div class="campo">
+        <label>Contraseña</label>
+        <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn-primary w-full">Entrar</button>
+    </form>
+    <p id="login-error" class="error-msg"></p>
+    <button id="btn-toggle-registro" class="btn-link">¿No tienes cuenta? Crear una</button>
   </div>
+</div>
+
+<!-- APP -->
+<div id="vista-app" class="oculto">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">💰 <span>Mi Dinero</span></div>
+    <nav class="sidebar-nav">
+      <button class="nav-item activo" data-tab="dashboard">
+        <span class="nav-icon">◼</span> Dashboard
+      </button>
+      <button class="nav-item" data-tab="movimientos">
+        <span class="nav-icon">↕</span> Movimientos
+      </button>
+      <button class="nav-item" data-tab="cuentas">
+        <span class="nav-icon">🏦</span> Cuentas
+      </button>
+      <button class="nav-item" data-tab="deudas">
+        <span class="nav-icon">📋</span> Deudas
+      </button>
+      <button class="nav-item" data-tab="ahorros">
+        <span class="nav-icon">🎯</span> Ahorros
+      </button>
+      <button class="nav-item" data-tab="presupuesto">
+        <span class="nav-icon">📊</span> Presupuesto
+      </button>
+    </nav>
+    <button id="btn-reset" class="btn-logout" style="color:#f5a623">↺ Empezar de cero</button>
+    <button id="btn-logout" class="btn-logout">Salir</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <section id="panel-dashboard" class="panel">
+      <div class="panel-top">
+        <h2 class="panel-title">Dashboard</h2>
+        <span id="dash-fecha" class="dash-fecha"></span>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-primary">
+          <span class="kpi-label">Balance total</span>
+          <span class="kpi-value" id="kpi-balance">$0</span>
+          <span class="kpi-sub">Suma de todas las cuentas</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Disponible este mes</span>
+          <span class="kpi-value" id="kpi-disponible">$0</span>
+          <span class="kpi-sub">Balance − deudas del mes</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Gastos del mes</span>
+          <span class="kpi-value negativo" id="kpi-gastos">$0</span>
+          <span class="kpi-sub" id="kpi-gastos-sub">Este mes</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Ingresos del mes</span>
+          <span class="kpi-value positivo" id="kpi-ingresos">$0</span>
+          <span class="kpi-sub" id="kpi-ingresos-sub">Este mes</span>
+        </div>
+      </div>
+
+      <!-- GRÁFICAS + CUENTAS -->
+      <div class="dash-grid">
+
+        <!-- Dona de gastos -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Gastos por categoría</h3>
+            <div class="mes-nav">
+              <button id="dona-prev" class="btn-icon-sm">‹</button>
+              <span id="dona-mes">—</span>
+              <button id="dona-next" class="btn-icon-sm">›</button>
+            </div>
+          </div>
+          <div class="dona-wrap">
+            <svg id="dona-svg" viewBox="0 0 160 160" width="160" height="160"></svg>
+            <div id="dona-centro" class="dona-centro"></div>
+          </div>
+          <div id="dona-leyenda" class="dona-leyenda"></div>
+        </div>
+
+        <!-- Evolución balance -->
+        <div class="card">
+          <h3>Evolución del balance</h3>
+          <div id="grafica-linea-wrap" class="grafica-linea-wrap">
+            <svg id="grafica-linea" viewBox="0 0 320 140" width="100%" preserveAspectRatio="none"></svg>
+          </div>
+          <div id="grafica-linea-labels" class="grafica-linea-labels"></div>
+        </div>
+
+        <!-- Cuentas rápido -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Mis cuentas</h3>
+            <button class="btn-sm" onclick="irTab('cuentas')">Ver todas</button>
+          </div>
+          <div id="dash-cuentas" class="cuentas-lista"></div>
+        </div>
+
+        <!-- Ahorros rápido -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Metas de ahorro</h3>
+            <button class="btn-sm" onclick="irTab('ahorros')">Ver todas</button>
+          </div>
+          <div id="dash-ahorros" class="metas-lista"></div>
+        </div>
+
+      </div>
+
+      <!-- Últimos movimientos -->
+      <div class="card mt-16">
+        <div class="card-header">
+          <h3>Últimos movimientos</h3>
+          <button class="btn-sm" onclick="irTab('movimientos')">Ver todos</button>
+        </div>
+        <div id="dash-movimientos" class="movs-lista"></div>
+      </div>
+    </section>
+
+    <!-- MOVIMIENTOS -->
+    <section id="panel-movimientos" class="panel oculto">
+      <div class="panel-top">
+        <h2 class="panel-title">Movimientos</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-outline btn-sm" onclick="exportarCSV()">⬇ CSV</button>
+          <button class="btn-primary" id="btn-nuevo-mov">+ Agregar</button>
+        </div>
+      </div>
+      <div class="filtros-row">
+        <label>Mes:
+          <input type="month" id="filtro-mes" class="input-sm">
+        </label>
+        <label>Cuenta:
+          <select id="filtro-cuenta" class="input-sm">
+            <option value="">Todas</option>
+          </select>
+        </label>
+        <label>Tipo:
+          <select id="filtro-tipo" class="input-sm">
+            <option value="">Todos</option>
+            <option value="ingreso">Ingresos</option>
+            <option value="gasto">Gastos</option>
+          </select>
+        </label>
+      </div>
+      <div class="card">
+        <div id="lista-movimientos"></div>
+      </div>
+    </section>
+
+    <!-- CUENTAS -->
+    <section id="panel-cuentas" class="panel oculto">
+      <div class="panel-top">
+        <h2 class="panel-title">Cuentas</h2>
+        <button class="btn-primary" onclick="abrirModalCuenta()">+ Cuenta</button>
+      </div>
+      <div id="grid-cuentas" class="cuentas-grid"></div>
+    </section>
+
+    <!-- DEUDAS -->
+    <section id="panel-deudas" class="panel oculto">
+      <div class="panel-top">
+        <h2 class="panel-title">Deudas</h2>
+        <button class="btn-primary" onclick="abrirModalDeuda()">+ Deuda</button>
+      </div>
+      <div id="lista-deudas" class="deudas-lista"></div>
+    </section>
+
+    <!-- AHORROS -->
+    <section id="panel-ahorros" class="panel oculto">
+      <div class="panel-top">
+        <h2 class="panel-title">Metas de ahorro</h2>
+        <button class="btn-primary" onclick="abrirModalMeta()">+ Meta</button>
+      </div>
+      <div id="lista-metas" class="metas-grid"></div>
+    </section>
+
+    <!-- PRESUPUESTO -->
+    <section id="panel-presupuesto" class="panel oculto">
+      <div class="panel-top">
+        <h2 class="panel-title">Presupuesto</h2>
+        <button class="btn-outline" onclick="abrirModalConfig()">⚙ Configurar</button>
+      </div>
+
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi-card kpi-primary">
+          <span class="kpi-label">Ingreso mensual</span>
+          <span class="kpi-value" id="p-ingreso">$0</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Gastado este mes</span>
+          <span class="kpi-value negativo" id="p-gastado">$0</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Disponible</span>
+          <span class="kpi-value" id="p-disponible">$0</span>
+        </div>
+      </div>
+
+      <div id="presupuesto-categorias" class="presupuesto-cats"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay" class="modal-overlay oculto">
+  <div id="modal-box" class="modal-box"></div>
+</div>
+
+<!-- FAB: botón flotante para agregar movimiento rápido -->
+<button id="fab-add" class="fab" onclick="abrirModalMovimiento()" title="Agregar movimiento">+</button>
+
+<!-- Navbar inferior en móvil -->
+<nav class="mobile-nav">
+  <button class="mobile-nav-item activo" data-tab="dashboard">
+    <span>◼</span><span>Inicio</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="movimientos">
+    <span>↕</span><span>Movimientos</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="cuentas">
+    <span>🏦</span><span>Cuentas</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="deudas">
+    <span>📋</span><span>Deudas</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="ahorros">
+    <span>🎯</span><span>Ahorros</span>
+  </button>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
